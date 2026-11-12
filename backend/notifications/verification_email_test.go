@@ -13,6 +13,7 @@ func TestSMTPSTARTTLSRequired(t *testing.T) {
 		{name: "defaults to required", host: "smtp.example.com", want: true},
 		{name: "explicitly required", host: "smtp.example.com", setting: "true", want: true},
 		{name: "localhost can disable", host: "localhost", setting: "false"},
+		{name: "local Mailpit service can disable", host: "mailpit", setting: "false"},
 		{name: "loopback IP can disable", host: "127.0.0.1", setting: "false"},
 		{name: "IPv6 loopback can disable", host: "::1", setting: "false"},
 		{name: "remote host cannot disable", host: "smtp.example.com", setting: "false", wantErr: true},

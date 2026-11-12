@@ -125,7 +125,7 @@ func smtpSTARTTLSRequired(host, setting string) (bool, error) {
 		return true, nil
 	case "false":
 		ip := net.ParseIP(strings.Trim(host, "[]"))
-		if strings.EqualFold(host, "localhost") || (ip != nil && ip.IsLoopback()) {
+		if strings.EqualFold(host, "localhost") || strings.EqualFold(host, "mailpit") || (ip != nil && ip.IsLoopback()) {
 			return false, nil
 		}
 		return false, fmt.Errorf("SMTP_STARTTLS=false is only allowed for localhost or a loopback IP")
