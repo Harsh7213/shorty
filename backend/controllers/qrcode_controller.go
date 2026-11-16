@@ -10,6 +10,19 @@ import (
 	qr "github.com/Harsh7213/shorty/qrcode"
 )
 
+// GenerateQRCode returns a PNG QR code for an active short link.
+// @Summary Generate a QR code
+// @Description Available to all members of the link's organization.
+// @Tags Links
+// @Produce image/png
+// @Security BearerAuth
+// @Param code path string true "Short link code"
+// @Success 200 {file} file
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "No access to this organization"
+// @Failure 404 {string} string "Short URL not found"
+// @Failure 500 {string} string "Failed to generate QR code"
+// @Router /api/v1/qr/{code} [get]
 func GenerateQRCode(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -27,7 +40,7 @@ func GenerateQRCode(w http.ResponseWriter, r *http.Request) {
 		writeLinkLookupError(w, err)
 		return
 	}
-	if !hasLinkPermission(w, userID, organizationID) {
+	if !hasOrganizationReadAccess(w, userID, organizationID) {
 		return
 	}
 

@@ -20,6 +20,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// CreateOrganization creates an organization owned by the authenticated account.
+// @Summary Create an organization
+// @Tags Organizations
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body CreateOrganizationRequest true "Organization details"
+// @Success 201 {object} models.Organization
+// @Failure 400 {string} string "Organization name is required"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 409 {string} string "Account already belongs to an organization"
+// @Failure 500 {string} string "Failed to create organization"
+// @Router /api/v1/org [post]
 func CreateOrganization(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -27,9 +40,7 @@ func CreateOrganization(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request struct {
-		Name string `json:"name"`
-	}
+	var request CreateOrganizationRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		return
 	}
@@ -85,7 +96,16 @@ func CreateOrganization(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ListOrganizations(w http.ResponseWriter, r *http.Request) {
+// ListUserOrganization returns organizations the authenticated account belongs to.
+// @Summary List my organizations
+// @Tags Organizations
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} models.Organization
+// @Failure 401 {string} string "Authentication required"
+// @Failure 500 {string} string "Failed to list organizations"
+// @Router /api/v1/org [get]
+func ListUserOrganization(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
 		http.Error(w, "Authentication required", http.StatusUnauthorized)
@@ -131,6 +151,24 @@ func ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AddOrganizationMember adds or updates an organization member and their permissions.
+// @Summary Add or update an organization member
+// @Tags Organizations
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param organizationID path int true "Organization ID"
+// @Param body body AddOrganizationMemberRequest true "Member details and permissions"
+// @Success 202 {object} map[string]string "Member added; email verification is pending"
+// @Success 204 "Member added or permissions updated"
+// @Failure 400 {string} string "Invalid request"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "Missing organization.manage permission or not allowed to change own permissions"
+// @Failure 404 {string} string "Organization not found"
+// @Failure 409 {string} string "Member or organization conflict"
+// @Failure 500 {string} string "Failed to add organization member"
+// @Failure 503 {string} string "Verification email could not be sent"
+// @Router /api/v1/org/{organizationID}/members [post]
 func AddOrganizationMember(w http.ResponseWriter, r *http.Request) {
 	requesterID, ok := auth.UserID(r)
 	if !ok {
@@ -141,12 +179,7 @@ func AddOrganizationMember(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var request struct {
-		Email       string   `json:"email"`
-		DisplayName string   `json:"display_name"`
-		Password    string   `json:"password"`
-		Permissions []string `json:"permissions"`
-	}
+	var request AddOrganizationMemberRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		return
 	}
@@ -243,6 +276,10 @@ func AddOrganizationMember(w http.ResponseWriter, r *http.Request) {
 	}
 	if memberIsOwner && len(request.Permissions) > 0 {
 		http.Error(w, "The organization owner is managed separately from members and admins", http.StatusConflict)
+		return
+	}
+	if memberID == requesterID && !requesterIsOwner {
+		http.Error(w, "Only the organization owner can change their own permissions", http.StatusForbidden)
 		return
 	}
 	if deactivated {
@@ -385,6 +422,18 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &postgresError) && postgresError.Code == "23505"
 }
 
+// ListOrganizationMembers returns members of an organization.
+// @Summary List organization members
+// @Tags Organizations
+// @Produce json
+// @Security BearerAuth
+// @Param organizationID path int true "Organization ID"
+// @Success 200 {array} map[string]interface{}
+// @Failure 400 {string} string "Invalid organization ID"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "Missing organization.manage permission"
+// @Failure 500 {string} string "Failed to list organization members"
+// @Router /api/v1/org/{organizationID}/members [get]
 func ListOrganizationMembers(w http.ResponseWriter, r *http.Request) {
 	requesterID, ok := auth.UserID(r)
 	if !ok {
@@ -440,6 +489,20 @@ func ListOrganizationMembers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// RemoveOrganizationMember removes a user's membership without deleting their account.
+// @Summary Remove an organization member
+// @Tags Organizations
+// @Security BearerAuth
+// @Param organizationID path int true "Organization ID"
+// @Param userID path int true "User ID"
+// @Success 204 "Member removed"
+// @Failure 400 {string} string "Invalid organization or user ID"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "Missing organization.manage permission"
+// @Failure 404 {string} string "Organization or member not found"
+// @Failure 409 {string} string "Owner or last active manager cannot be removed"
+// @Failure 500 {string} string "Failed to remove organization member"
+// @Router /api/v1/org/{organizationID}/members/{userID} [delete]
 func RemoveOrganizationMember(w http.ResponseWriter, r *http.Request) {
 	requesterID, ok := auth.UserID(r)
 	if !ok {

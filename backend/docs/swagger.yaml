@@ -1,0 +1,892 @@
+basePath: /
+definitions:
+  controllers.AddOrganizationMemberRequest:
+    properties:
+      display_name:
+        example: Person
+        type: string
+      email:
+        example: person@example.com
+        type: string
+      password:
+        example: temporary-password
+        type: string
+      permissions:
+        example:
+        - link.manage
+        items:
+          type: string
+        type: array
+    type: object
+  controllers.ChangePasswordRequest:
+    properties:
+      current_password:
+        example: current-password
+        type: string
+      new_password:
+        example: a-new-password
+        type: string
+    type: object
+  controllers.CreateLinkRequest:
+    properties:
+      expires_at:
+        example: "2027-01-01T00:00:00Z"
+        type: string
+      long_url:
+        example: https://example.com
+        type: string
+      organization_id:
+        example: 1
+        type: integer
+    type: object
+  controllers.CreateOrganizationRequest:
+    properties:
+      name:
+        example: Example
+        type: string
+    type: object
+  controllers.LoginRequest:
+    properties:
+      email:
+        example: person@example.com
+        type: string
+      password:
+        example: your-password
+        type: string
+    type: object
+  controllers.RegisterUserRequest:
+    properties:
+      display_name:
+        example: Person
+        type: string
+      email:
+        example: person@example.com
+        type: string
+      password:
+        example: at-least-12-characters
+        type: string
+    type: object
+  controllers.ResendVerificationRequest:
+    properties:
+      email:
+        example: person@example.com
+        type: string
+    type: object
+  controllers.UpdateLinkRequest:
+    properties:
+      expires_at:
+        example: "2027-01-01T00:00:00Z"
+        type: string
+      status:
+        enum:
+        - active
+        - disabled
+        - revoked
+        example: disabled
+        type: string
+    type: object
+  models.CreateLinkResponse:
+    properties:
+      reused:
+        type: boolean
+      short_url:
+        type: string
+    type: object
+  models.Organization:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      owner_user_id:
+        type: integer
+      permissions:
+        items:
+          type: string
+        type: array
+    type: object
+info:
+  contact: {}
+  description: URL shortener API.
+  title: Shorty
+  version: v1.0
+paths:
+  /{code}:
+    get:
+      parameters:
+      - description: Short link code
+        in: path
+        name: code
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Redirect to the destination URL
+        "400":
+          description: Short code is required
+          schema:
+            type: string
+        "404":
+          description: Short URL not found
+          schema:
+            type: string
+        "500":
+          description: Failed to record click event
+          schema:
+            type: string
+      summary: Redirect a short link
+      tags:
+      - Links
+  /api/v1/auth/account:
+    delete:
+      responses:
+        "204":
+          description: Account deleted
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "404":
+          description: Account not found
+          schema:
+            type: string
+        "500":
+          description: Failed to delete account
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete the current account
+      tags:
+      - Auth
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email and password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Invalid email or password
+          schema:
+            type: string
+        "403":
+          description: Account is inactive or email is unverified
+          schema:
+            type: string
+        "500":
+          description: Authentication or database error
+          schema:
+            type: string
+      summary: Sign in
+      tags:
+      - Auth
+  /api/v1/auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "500":
+          description: Failed to load account
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get the current account
+      tags:
+      - Auth
+  /api/v1/auth/password:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Current and new passwords
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "401":
+          description: Authentication required or current password is incorrect
+          schema:
+            type: string
+        "404":
+          description: Account not found
+          schema:
+            type: string
+        "500":
+          description: Failed to change password
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - Auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Account details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RegisterUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "409":
+          description: Email already exists
+          schema:
+            type: string
+        "500":
+          description: Failed to create account
+          schema:
+            type: string
+        "503":
+          description: Verification email could not be sent
+          schema:
+            type: string
+      summary: Register an account
+      tags:
+      - Auth
+  /api/v1/auth/resend-verification:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Account email
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ResendVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "500":
+          description: Failed to process request
+          schema:
+            type: string
+      summary: Resend a verification email
+      tags:
+      - Auth
+  /api/v1/auth/verify:
+    get:
+      parameters:
+      - description: Email verification token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Token is missing, invalid, or expired
+          schema:
+            type: string
+        "409":
+          description: Account is deactivated
+          schema:
+            type: string
+        "500":
+          description: Failed to verify email
+          schema:
+            type: string
+      summary: Verify an email address
+      tags:
+      - Auth
+  /api/v1/health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Check API health
+      tags:
+      - Health
+  /api/v1/link:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Link destination and organization
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreateLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: An existing matching link was reused
+          schema:
+            $ref: '#/definitions/models.CreateLinkResponse'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CreateLinkResponse'
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: Missing link.manage permission
+          schema:
+            type: string
+        "409":
+          description: Link with a different expiry already exists
+          schema:
+            type: string
+        "500":
+          description: Failed to create short link
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create a short link
+      tags:
+      - Links
+  /api/v1/link/{code}:
+    delete:
+      parameters:
+      - description: Short link code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: Missing link.manage permission
+          schema:
+            type: string
+        "404":
+          description: Short URL not found
+          schema:
+            type: string
+        "500":
+          description: Failed to revoke link
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Revoke a short link
+      tags:
+      - Links
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Short link code
+        in: path
+        name: code
+        required: true
+        type: string
+      - description: Fields to update; use null to clear expires_at
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.UpdateLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: Missing link.manage permission
+          schema:
+            type: string
+        "404":
+          description: Short URL not found
+          schema:
+            type: string
+        "409":
+          description: Expired links cannot be disabled or revoked links cannot be
+            changed
+          schema:
+            type: string
+        "500":
+          description: Failed to update link
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Update a short link
+      tags:
+      - Links
+  /api/v1/link/stats/{code}:
+    get:
+      description: Available to all members of the link's organization; link.manage
+        is only required to change links.
+      parameters:
+      - description: Short link code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: No access to this organization
+          schema:
+            type: string
+        "404":
+          description: Short URL not found
+          schema:
+            type: string
+        "500":
+          description: Database error
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get short link statistics
+      tags:
+      - Links
+  /api/v1/org:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Organization'
+            type: array
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "500":
+          description: Failed to list organizations
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: List my organizations
+      tags:
+      - Organizations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CreateOrganizationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Organization'
+        "400":
+          description: Organization name is required
+          schema:
+            type: string
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "409":
+          description: Account already belongs to an organization
+          schema:
+            type: string
+        "500":
+          description: Failed to create organization
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Create an organization
+      tags:
+      - Organizations
+  /api/v1/org/{organizationID}/analytics:
+    get:
+      description: Available to all organization members, including members without
+        link.manage.
+      parameters:
+      - description: Organization ID
+        in: path
+        name: organizationID
+        required: true
+        type: integer
+      - default: week
+        description: Reporting window
+        enum:
+        - week
+        - month
+        in: query
+        name: period
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid organization ID or period
+          schema:
+            type: string
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: No access to this organization
+          schema:
+            type: string
+        "500":
+          description: Failed to load analytics
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get organization analytics
+      tags:
+      - Links
+  /api/v1/org/{organizationID}/links:
+    get:
+      description: Available to all organization members. The link.manage permission
+        is required only to create or change links.
+      parameters:
+      - description: Organization ID
+        in: path
+        name: organizationID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "400":
+          description: Invalid organization ID
+          schema:
+            type: string
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: No access to this organization
+          schema:
+            type: string
+        "500":
+          description: Failed to list organization links
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: List organization links
+      tags:
+      - Links
+  /api/v1/org/{organizationID}/members:
+    get:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: organizationID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+        "400":
+          description: Invalid organization ID
+          schema:
+            type: string
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: Missing organization.manage permission
+          schema:
+            type: string
+        "500":
+          description: Failed to list organization members
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: List organization members
+      tags:
+      - Organizations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Organization ID
+        in: path
+        name: organizationID
+        required: true
+        type: integer
+      - description: Member details and permissions
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.AddOrganizationMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Member added; email verification is pending
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "204":
+          description: Member added or permissions updated
+        "400":
+          description: Invalid request
+          schema:
+            type: string
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: Missing organization.manage permission or not allowed to change
+            own permissions
+          schema:
+            type: string
+        "404":
+          description: Organization not found
+          schema:
+            type: string
+        "409":
+          description: Member or organization conflict
+          schema:
+            type: string
+        "500":
+          description: Failed to add organization member
+          schema:
+            type: string
+        "503":
+          description: Verification email could not be sent
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Add or update an organization member
+      tags:
+      - Organizations
+  /api/v1/org/{organizationID}/members/{userID}:
+    delete:
+      parameters:
+      - description: Organization ID
+        in: path
+        name: organizationID
+        required: true
+        type: integer
+      - description: User ID
+        in: path
+        name: userID
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: Member removed
+        "400":
+          description: Invalid organization or user ID
+          schema:
+            type: string
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: Missing organization.manage permission
+          schema:
+            type: string
+        "404":
+          description: Organization or member not found
+          schema:
+            type: string
+        "409":
+          description: Owner or last active manager cannot be removed
+          schema:
+            type: string
+        "500":
+          description: Failed to remove organization member
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Remove an organization member
+      tags:
+      - Organizations
+  /api/v1/qr/{code}:
+    get:
+      description: Available to all members of the link's organization.
+      parameters:
+      - description: Short link code
+        in: path
+        name: code
+        required: true
+        type: string
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "401":
+          description: Authentication required
+          schema:
+            type: string
+        "403":
+          description: No access to this organization
+          schema:
+            type: string
+        "404":
+          description: Short URL not found
+          schema:
+            type: string
+        "500":
+          description: Failed to generate QR code
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Generate a QR code
+      tags:
+      - Links
+securityDefinitions:
+  BearerAuth:
+    description: Enter "Bearer" followed by a space and your access token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

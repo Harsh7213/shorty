@@ -16,6 +16,21 @@ import (
 	"github.com/Harsh7213/shorty/models"
 )
 
+// CreateLink creates a short link or returns an existing link with the same destination and expiry.
+// @Summary Create a short link
+// @Tags Links
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body CreateLinkRequest true "Link destination and organization"
+// @Success 201 {object} models.CreateLinkResponse
+// @Success 200 {object} models.CreateLinkResponse "An existing matching link was reused"
+// @Failure 400 {string} string "Invalid request"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "Missing link.manage permission"
+// @Failure 409 {string} string "Link with a different expiry already exists"
+// @Failure 500 {string} string "Failed to create short link"
+// @Router /api/v1/link [post]
 func CreateLink(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -23,11 +38,7 @@ func CreateLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request struct {
-		OrganizationID int64      `json:"organization_id"`
-		LongURL        string     `json:"long_url"`
-		ExpiresAt      *time.Time `json:"expires_at"`
-	}
+	var request CreateLinkRequest
 
 	if err := decodeJSON(w, r, &request); err != nil {
 		return
@@ -197,6 +208,15 @@ func CreateLink(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetLink redirects to the destination for an active, unexpired short link.
+// @Summary Redirect a short link
+// @Tags Links
+// @Param code path string true "Short link code"
+// @Success 302 "Redirect to the destination URL"
+// @Failure 400 {string} string "Short code is required"
+// @Failure 404 {string} string "Short URL not found"
+// @Failure 500 {string} string "Failed to record click event"
+// @Router /{code} [get]
 func GetLink(w http.ResponseWriter, r *http.Request) {
 	code := r.PathValue("code")
 
@@ -234,6 +254,19 @@ func GetLink(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, longURL, http.StatusFound)
 }
 
+// GetLinkStats returns click statistics for a short link.
+// @Summary Get short link statistics
+// @Description Available to all members of the link's organization; link.manage is only required to change links.
+// @Tags Links
+// @Produce json
+// @Security BearerAuth
+// @Param code path string true "Short link code"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "No access to this organization"
+// @Failure 404 {string} string "Short URL not found"
+// @Failure 500 {string} string "Database error"
+// @Router /api/v1/link/stats/{code} [get]
 func GetLinkStats(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -252,7 +285,7 @@ func GetLinkStats(w http.ResponseWriter, r *http.Request) {
 		writeLinkLookupError(w, err)
 		return
 	}
-	if !hasLinkPermission(w, userID, organizationID) {
+	if !hasOrganizationReadAccess(w, userID, organizationID) {
 		return
 	}
 
@@ -291,6 +324,19 @@ func GetLinkStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// ListOrganizationLinks returns links and click summaries for an organization.
+// @Summary List organization links
+// @Description Available to all organization members. The link.manage permission is required only to create or change links.
+// @Tags Links
+// @Produce json
+// @Security BearerAuth
+// @Param organizationID path int true "Organization ID"
+// @Success 200 {array} map[string]interface{}
+// @Failure 400 {string} string "Invalid organization ID"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "No access to this organization"
+// @Failure 500 {string} string "Failed to list organization links"
+// @Router /api/v1/org/{organizationID}/links [get]
 func ListOrganizationLinks(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -302,7 +348,7 @@ func ListOrganizationLinks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "A valid organizationID is required", http.StatusBadRequest)
 		return
 	}
-	if !hasLinkPermission(w, userID, organizationID) {
+	if !hasOrganizationReadAccess(w, userID, organizationID) {
 		return
 	}
 
@@ -378,6 +424,20 @@ func ListOrganizationLinks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetOrganizationAnalytics returns daily and country click totals for an organization.
+// @Summary Get organization analytics
+// @Description Available to all organization members, including members without link.manage.
+// @Tags Links
+// @Produce json
+// @Security BearerAuth
+// @Param organizationID path int true "Organization ID"
+// @Param period query string false "Reporting window" Enums(week,month) default(week)
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Invalid organization ID or period"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "No access to this organization"
+// @Failure 500 {string} string "Failed to load analytics"
+// @Router /api/v1/org/{organizationID}/analytics [get]
 func GetOrganizationAnalytics(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -389,7 +449,7 @@ func GetOrganizationAnalytics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "A valid organizationID is required", http.StatusBadRequest)
 		return
 	}
-	if !hasLinkPermission(w, userID, organizationID) {
+	if !hasOrganizationReadAccess(w, userID, organizationID) {
 		return
 	}
 
@@ -496,6 +556,18 @@ func GetOrganizationAnalytics(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteLink revokes a short link.
+// @Summary Revoke a short link
+// @Tags Links
+// @Produce json
+// @Security BearerAuth
+// @Param code path string true "Short link code"
+// @Success 200 {object} map[string]string
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "Missing link.manage permission"
+// @Failure 404 {string} string "Short URL not found"
+// @Failure 500 {string} string "Failed to revoke link"
+// @Router /api/v1/link/{code} [delete]
 func DeleteLink(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -562,6 +634,22 @@ func DeleteLink(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateLink changes a short link's status and/or expiration.
+// @Summary Update a short link
+// @Tags Links
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param code path string true "Short link code"
+// @Param body body UpdateLinkRequest true "Fields to update; use null to clear expires_at"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {string} string "Invalid request"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 403 {string} string "Missing link.manage permission"
+// @Failure 404 {string} string "Short URL not found"
+// @Failure 409 {string} string "Expired links cannot be disabled or revoked links cannot be changed"
+// @Failure 500 {string} string "Failed to update link"
+// @Router /api/v1/link/{code} [patch]
 func UpdateLink(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -575,10 +663,7 @@ func UpdateLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request struct {
-		Status    *string         `json:"status"`
-		ExpiresAt json.RawMessage `json:"expires_at"`
-	}
+	var request UpdateLinkRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		return
 	}
@@ -705,6 +790,30 @@ func requestCountryCode(r *http.Request) any {
 		}
 	}
 	return countryCode
+}
+
+func hasOrganizationReadAccess(w http.ResponseWriter, userID, organizationID int64) bool {
+	var allowed bool
+	err := db.DB.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM shorty.organizations
+			WHERE id = $1 AND owner_user_id = $2
+		) OR EXISTS (
+			SELECT 1
+			FROM shorty.organization_members
+			WHERE organization_id = $1
+			  AND user_id = $2
+		)`, organizationID, userID).Scan(&allowed)
+	if err != nil {
+		http.Error(w, "Failed to verify organization access", http.StatusInternalServerError)
+		return false
+	}
+	if !allowed {
+		http.Error(w, "No access to this organization", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 func hasLinkPermission(w http.ResponseWriter, userID, organizationID int64) bool {

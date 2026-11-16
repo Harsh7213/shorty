@@ -24,17 +24,20 @@ import (
 const verificationTokenLifetime = 24 * time.Hour
 const bcryptCost = 12
 
-type userCredentials struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
+// RegisterUser creates an account and sends its verification email.
+// @Summary Register an account
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body RegisterUserRequest true "Account details"
+// @Success 201 {object} map[string]string
+// @Failure 400 {string} string "Invalid request"
+// @Failure 409 {string} string "Email already exists"
+// @Failure 500 {string} string "Failed to create account"
+// @Failure 503 {string} string "Verification email could not be sent"
+// @Router /api/v1/auth/register [post]
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Email       string `json:"email"`
-		Password    string `json:"password"`
-		DisplayName string `json:"display_name"`
-	}
+	var request RegisterUserRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		return
 	}
@@ -103,6 +106,16 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// VerifyEmail verifies an account using the token sent by email.
+// @Summary Verify an email address
+// @Tags Auth
+// @Produce json
+// @Param token query string true "Email verification token"
+// @Success 200 {object} map[string]string
+// @Failure 400 {string} string "Token is missing, invalid, or expired"
+// @Failure 409 {string} string "Account is deactivated"
+// @Failure 500 {string} string "Failed to verify email"
+// @Router /api/v1/auth/verify [get]
 func VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
@@ -157,10 +170,18 @@ func VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Email verified. You can now sign in."})
 }
 
+// ResendVerificationEmail sends another verification email when needed.
+// @Summary Resend a verification email
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body ResendVerificationRequest true "Account email"
+// @Success 200 {object} map[string]string
+// @Failure 400 {string} string "Invalid request"
+// @Failure 500 {string} string "Failed to process request"
+// @Router /api/v1/auth/resend-verification [post]
 func ResendVerificationEmail(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Email string `json:"email"`
-	}
+	var request ResendVerificationRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		return
 	}
@@ -215,8 +236,19 @@ func ResendVerificationEmail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "If the account needs verification, an email will be sent."})
 }
 
+// LoginUser authenticates a verified account and returns a short-lived access token.
+// @Summary Sign in
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body LoginRequest true "Email and password"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {string} string "Invalid email or password"
+// @Failure 403 {string} string "Account is inactive or email is unverified"
+// @Failure 500 {string} string "Authentication or database error"
+// @Router /api/v1/auth/login [post]
 func LoginUser(w http.ResponseWriter, r *http.Request) {
-	var request userCredentials
+	var request LoginRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		return
 	}
@@ -272,6 +304,15 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// CurrentUser returns the authenticated account.
+// @Summary Get the current account
+// @Tags Auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {string} string "Authentication required"
+// @Failure 500 {string} string "Failed to load account"
+// @Router /api/v1/auth/me [get]
 func CurrentUser(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -295,6 +336,15 @@ func CurrentUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, user)
 }
 
+// DeleteAccount permanently deletes the authenticated account.
+// @Summary Delete the current account
+// @Tags Auth
+// @Security BearerAuth
+// @Success 204 "Account deleted"
+// @Failure 401 {string} string "Authentication required"
+// @Failure 404 {string} string "Account not found"
+// @Failure 500 {string} string "Failed to delete account"
+// @Router /api/v1/auth/account [delete]
 func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -343,6 +393,19 @@ func DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ChangePassword updates the authenticated account's password.
+// @Summary Change password
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param body body ChangePasswordRequest true "Current and new passwords"
+// @Success 200 {object} map[string]string
+// @Failure 400 {string} string "Invalid request"
+// @Failure 401 {string} string "Authentication required or current password is incorrect"
+// @Failure 404 {string} string "Account not found"
+// @Failure 500 {string} string "Failed to change password"
+// @Router /api/v1/auth/password [patch]
 func ChangePassword(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
@@ -350,10 +413,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var request struct {
-		CurrentPassword string `json:"current_password"`
-		NewPassword     string `json:"new_password"`
-	}
+	var request ChangePasswordRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		return
 	}

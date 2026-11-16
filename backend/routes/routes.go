@@ -5,10 +5,12 @@ import (
 
 	"github.com/Harsh7213/shorty/auth"
 	"github.com/Harsh7213/shorty/controllers"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 func RegisterRoutes() {
 	basePath := "/api/v1"
+	http.Handle("GET /swagger/", httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")))
 	http.HandleFunc("GET "+basePath+"/health", controllers.HealthCheck)
 	http.HandleFunc("GET /{code}", controllers.GetLink)
 	http.Handle("GET "+basePath+"/link/stats/{code}", auth.RequireJWT(http.HandlerFunc(controllers.GetLinkStats)))
@@ -20,7 +22,7 @@ func RegisterRoutes() {
 	http.Handle("GET "+basePath+"/auth/me", auth.RequireJWT(http.HandlerFunc(controllers.CurrentUser)))
 	http.Handle("PATCH "+basePath+"/auth/password", auth.RequireJWT(http.HandlerFunc(controllers.ChangePassword)))
 	http.Handle("DELETE "+basePath+"/auth/account", auth.RequireJWT(http.HandlerFunc(controllers.DeleteAccount)))
-	http.Handle("GET "+basePath+"/org", auth.RequireJWT(http.HandlerFunc(controllers.ListOrganizations)))
+	http.Handle("GET "+basePath+"/org", auth.RequireJWT(http.HandlerFunc(controllers.ListUserOrganization)))
 	http.Handle("POST "+basePath+"/org", auth.RequireJWT(http.HandlerFunc(controllers.CreateOrganization)))
 	http.Handle("GET "+basePath+"/org/{organizationID}/members", auth.RequireJWT(http.HandlerFunc(controllers.ListOrganizationMembers)))
 	http.Handle("POST "+basePath+"/org/{organizationID}/members", auth.RequireJWT(http.HandlerFunc(controllers.AddOrganizationMember)))
