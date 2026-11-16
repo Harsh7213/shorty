@@ -56,6 +56,7 @@ func CreateOrganization(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create organization", http.StatusInternalServerError)
 		return
 	}
+	organization.Permissions = []string{}
 
 	_, err = tx.ExecContext(r.Context(), `
 		INSERT INTO shorty.organization_members
@@ -92,7 +93,7 @@ func ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.DB.QueryContext(r.Context(), `
-		SELECT o.id, o.name, o.owner_user_id, o.created_at
+		SELECT o.id, o.name, o.owner_user_id, o.created_at, m.permissions
 		FROM shorty.organizations o
 		JOIN shorty.organization_members m
 		  ON m.organization_id = o.id
@@ -107,7 +108,13 @@ func ListOrganizations(w http.ResponseWriter, r *http.Request) {
 	organizations := make([]models.Organization, 0)
 	for rows.Next() {
 		var organization models.Organization
-		if err := rows.Scan(&organization.ID, &organization.Name, &organization.OwnerUserID, &organization.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&organization.ID,
+			&organization.Name,
+			&organization.OwnerUserID,
+			&organization.CreatedAt,
+			pq.Array(&organization.Permissions),
+		); err != nil {
 			http.Error(w, "Failed to read organizations", http.StatusInternalServerError)
 			return
 		}

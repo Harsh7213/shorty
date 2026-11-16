@@ -60,7 +60,8 @@ CREATE INDEX IF NOT EXISTS links_organization_idx ON shorty.links (organization_
 CREATE TABLE IF NOT EXISTS shorty.click_events (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     link_id     BIGINT NOT NULL REFERENCES shorty.links(id) ON DELETE CASCADE,
-    clicked_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    clicked_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    country_code VARCHAR(2)
 );
 
 CREATE INDEX IF NOT EXISTS click_events_link_time_idx

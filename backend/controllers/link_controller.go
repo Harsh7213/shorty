@@ -45,7 +45,11 @@ func CreateLink(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid URL format", http.StatusBadRequest)
 		return
 	}
-	if request.ExpiresAt != nil && !request.ExpiresAt.After(time.Now()) {
+	if request.ExpiresAt != nil {
+		expiry := request.ExpiresAt.UTC()
+		request.ExpiresAt = &expiry
+	}
+	if request.ExpiresAt != nil && !request.ExpiresAt.After(time.Now().UTC()) {
 		http.Error(w, "expires_at must be in the future", http.StatusBadRequest)
 		return
 	}
@@ -96,18 +100,23 @@ func CreateLink(w http.ResponseWriter, r *http.Request) {
 
 	var link models.Link
 	var reused bool
+	var existingExpiryMatches bool
 	err = tx.QueryRowContext(r.Context(), `
-		SELECT short_url_code
+		SELECT short_url_code, expires_at IS NOT DISTINCT FROM $3
 		FROM shorty.links
 		WHERE organization_id = $1
 		  AND long_url = $2
 		  AND status = 'active'
 		  AND (expires_at IS NULL OR expires_at > NOW())
-		ORDER BY created_at DESC
+		ORDER BY (expires_at IS NOT DISTINCT FROM $3) DESC, created_at DESC
 		LIMIT 1`,
-		request.OrganizationID, request.LongURL,
-	).Scan(&link.ShortURLCode)
+		request.OrganizationID, request.LongURL, request.ExpiresAt,
+	).Scan(&link.ShortURLCode, &existingExpiryMatches)
 	if err == nil {
+		if !existingExpiryMatches {
+			http.Error(w, "A short link for this destination already exists with a different expiry", http.StatusConflict)
+			return
+		}
 		reused = true
 	} else if err != sql.ErrNoRows {
 		http.Error(w, "Failed to check for an existing short link", http.StatusInternalServerError)
@@ -122,7 +131,7 @@ func CreateLink(w http.ResponseWriter, r *http.Request) {
 		link.ShortURL = os.Getenv("DOMAIN") + link.ShortURLCode
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(models.CreateLinkResponse{ShortURL: link.ShortURL}); err != nil {
+		if err := json.NewEncoder(w).Encode(models.CreateLinkResponse{ShortURL: link.ShortURL, Reused: true}); err != nil {
 			log.Printf("failed to write existing short link response: %v", err)
 		}
 		return
@@ -182,7 +191,7 @@ func CreateLink(w http.ResponseWriter, r *http.Request) {
 	link.ShortURL = os.Getenv("DOMAIN") + link.ShortURLCode
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	response := models.CreateLinkResponse{ShortURL: link.ShortURL}
+	response := models.CreateLinkResponse{ShortURL: link.ShortURL, Reused: false}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("failed to write created short link response: %v", err)
 	}
@@ -216,8 +225,8 @@ func GetLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Record click event
-	if _, err = db.DB.Exec(`INSERT INTO shorty.click_events (link_id) VALUES ($1)`, linkID); err != nil {
+	countryCode := requestCountryCode(r)
+	if _, err = db.DB.Exec(`INSERT INTO shorty.click_events (link_id, country_code) VALUES ($1, $2)`, linkID, countryCode); err != nil {
 		http.Error(w, "Failed to record click event", http.StatusInternalServerError)
 		return
 	}
@@ -300,7 +309,9 @@ func ListOrganizationLinks(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.QueryContext(r.Context(), `
 		SELECT l.id, l.long_url, l.short_url_code, l.status, l.expires_at,
 		l.created_at, l.created_by_user_id, l.created_by_email,
-		l.created_by_display_name, COUNT(c.id)
+		l.created_by_display_name, COUNT(c.id),
+		string_agg(DISTINCT c.country_code, ',' ORDER BY c.country_code)
+			FILTER (WHERE c.country_code IS NOT NULL)
 		FROM shorty.links l
 		LEFT JOIN shorty.click_events c ON c.link_id = l.id
 		WHERE l.organization_id = $1
@@ -325,26 +336,33 @@ func ListOrganizationLinks(w http.ResponseWriter, r *http.Request) {
 			Email       string `json:"email"`
 			DisplayName string `json:"display_name"`
 		} `json:"created_by"`
-		TotalClicks int64 `json:"total_clicks"`
+		TotalClicks  int64    `json:"total_clicks"`
+		CountryCodes []string `json:"country_codes"`
 	}
 	links := make([]organizationLink, 0)
 	for rows.Next() {
 		var link organizationLink
 		var expiresAt sql.NullTime
 		var createdByUserID sql.NullInt64
+		var countryCodes sql.NullString
 		if err := rows.Scan(
 			&link.ID, &link.LongURL, &link.ShortURLCode, &link.Status,
 			&expiresAt, &link.CreatedAt, &createdByUserID,
-			&link.CreatedBy.Email, &link.CreatedBy.DisplayName, &link.TotalClicks,
+			&link.CreatedBy.Email, &link.CreatedBy.DisplayName, &link.TotalClicks, &countryCodes,
 		); err != nil {
 			http.Error(w, "Failed to read organization links", http.StatusInternalServerError)
 			return
+		}
+		link.CountryCodes = make([]string, 0)
+		if countryCodes.Valid {
+			link.CountryCodes = strings.Split(countryCodes.String, ",")
 		}
 		if createdByUserID.Valid {
 			link.CreatedBy.UserID = &createdByUserID.Int64
 		}
 		if expiresAt.Valid {
-			link.ExpiresAt = &expiresAt.Time
+			expiry := expiresAt.Time.UTC()
+			link.ExpiresAt = &expiry
 		}
 		link.ShortURL = os.Getenv("DOMAIN") + link.ShortURLCode
 		links = append(links, link)
@@ -357,6 +375,124 @@ func ListOrganizationLinks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(links); err != nil {
 		log.Printf("failed to write organization links response: %v", err)
+	}
+}
+
+func GetOrganizationAnalytics(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserID(r)
+	if !ok {
+		http.Error(w, "Authentication required", http.StatusUnauthorized)
+		return
+	}
+	organizationID, err := strconv.ParseInt(r.PathValue("organizationID"), 10, 64)
+	if err != nil || organizationID < 1 {
+		http.Error(w, "A valid organizationID is required", http.StatusBadRequest)
+		return
+	}
+	if !hasLinkPermission(w, userID, organizationID) {
+		return
+	}
+
+	period := r.URL.Query().Get("period")
+	days := 7
+	switch period {
+	case "", "week":
+		period = "week"
+	case "month":
+		days = 30
+	default:
+		http.Error(w, "period must be week or month", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := db.DB.QueryContext(r.Context(), `
+		SELECT l.id, TO_CHAR(calendar.day, 'YYYY-MM-DD'), COUNT(c.id)
+		FROM shorty.links l
+		CROSS JOIN GENERATE_SERIES(
+			CURRENT_DATE - ($2::int - 1),
+			CURRENT_DATE,
+			INTERVAL '1 day'
+		) AS calendar(day)
+		LEFT JOIN shorty.click_events c
+			ON c.link_id = l.id
+			AND c.clicked_at >= calendar.day
+			AND c.clicked_at < calendar.day + INTERVAL '1 day'
+		WHERE l.organization_id = $1
+		GROUP BY l.id, l.created_at, calendar.day
+		ORDER BY l.created_at DESC, l.id, calendar.day`, organizationID, days)
+	if err != nil {
+		http.Error(w, "Failed to load organization analytics", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type dailyClicks struct {
+		Date   string `json:"date"`
+		Clicks int64  `json:"clicks"`
+	}
+	type linkAnalytics struct {
+		LinkID int64         `json:"link_id"`
+		Clicks []dailyClicks `json:"clicks"`
+	}
+	type countryClicks struct {
+		CountryCode string `json:"country_code"`
+		Clicks      int64  `json:"clicks"`
+	}
+	links := make([]linkAnalytics, 0)
+	for rows.Next() {
+		var linkID int64
+		var day dailyClicks
+		if err := rows.Scan(&linkID, &day.Date, &day.Clicks); err != nil {
+			http.Error(w, "Failed to read organization analytics", http.StatusInternalServerError)
+			return
+		}
+		if len(links) == 0 || links[len(links)-1].LinkID != linkID {
+			links = append(links, linkAnalytics{
+				LinkID: linkID,
+				Clicks: make([]dailyClicks, 0, days),
+			})
+		}
+		links[len(links)-1].Clicks = append(links[len(links)-1].Clicks, day)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Failed to read organization analytics", http.StatusInternalServerError)
+		return
+	}
+
+	countryRows, err := db.DB.QueryContext(r.Context(), `
+		SELECT COALESCE(c.country_code, ''), COUNT(*)
+		FROM shorty.click_events c
+		JOIN shorty.links l ON l.id = c.link_id
+		WHERE l.organization_id = $1
+		GROUP BY c.country_code
+		ORDER BY COUNT(*) DESC, c.country_code ASC NULLS LAST`, organizationID)
+	if err != nil {
+		http.Error(w, "Failed to load country analytics", http.StatusInternalServerError)
+		return
+	}
+	defer countryRows.Close()
+
+	countries := make([]countryClicks, 0)
+	for countryRows.Next() {
+		var country countryClicks
+		if err := countryRows.Scan(&country.CountryCode, &country.Clicks); err != nil {
+			http.Error(w, "Failed to read country analytics", http.StatusInternalServerError)
+			return
+		}
+		countries = append(countries, country)
+	}
+	if err := countryRows.Err(); err != nil {
+		http.Error(w, "Failed to read country analytics", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]any{
+		"period":    period,
+		"links":     links,
+		"countries": countries,
+	}); err != nil {
+		log.Printf("failed to write organization analytics response: %v", err)
 	}
 }
 
@@ -467,7 +603,8 @@ func UpdateLink(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "expires_at must be a timestamp or null", http.StatusBadRequest)
 			return
 		}
-		if !parsed.After(time.Now()) {
+		parsed = parsed.UTC()
+		if !parsed.After(time.Now().UTC()) {
 			http.Error(w, "expires_at must be in the future", http.StatusBadRequest)
 			return
 		}
@@ -502,6 +639,7 @@ func UpdateLink(w http.ResponseWriter, r *http.Request) {
 		WHERE short_url_code = $4
 		AND organization_id = $5
 		AND status <> 'revoked'
+		AND ($1 IS DISTINCT FROM 'disabled' OR expires_at IS NULL OR expires_at > NOW())
 		AND (
 		    EXISTS (
 		        SELECT 1 FROM shorty.organizations
@@ -523,11 +661,30 @@ func UpdateLink(w http.ResponseWriter, r *http.Request) {
 			if !hasLinkPermission(w, userID, organizationID) {
 				return
 			}
+			if request.Status != nil && *request.Status == "disabled" {
+				var expired bool
+				checkErr := db.DB.QueryRow(`
+					SELECT status <> 'revoked' AND expires_at IS NOT NULL AND expires_at <= NOW()
+					FROM shorty.links
+					WHERE short_url_code = $1 AND organization_id = $2`, code, organizationID).Scan(&expired)
+				if checkErr != nil && checkErr != sql.ErrNoRows {
+					http.Error(w, "Failed to verify link expiration", http.StatusInternalServerError)
+					return
+				}
+				if checkErr == nil && expired {
+					http.Error(w, "Expired links cannot be disabled", http.StatusConflict)
+					return
+				}
+			}
 			http.Error(w, "Revoked links cannot be changed", http.StatusConflict)
 			return
 		}
 		http.Error(w, "Failed to update link", http.StatusInternalServerError)
 		return
+	}
+	if updatedExpiry != nil {
+		expiry := updatedExpiry.UTC()
+		updatedExpiry = &expiry
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -535,6 +692,19 @@ func UpdateLink(w http.ResponseWriter, r *http.Request) {
 		"status":     updatedStatus,
 		"expires_at": updatedExpiry,
 	})
+}
+
+func requestCountryCode(r *http.Request) any {
+	countryCode := strings.ToUpper(strings.TrimSpace(r.Header.Get("CF-IPCountry")))
+	if len(countryCode) != 2 || countryCode == "XX" || countryCode == "T1" {
+		return nil
+	}
+	for _, char := range countryCode {
+		if char < 'A' || char > 'Z' {
+			return nil
+		}
+	}
+	return countryCode
 }
 
 func hasLinkPermission(w http.ResponseWriter, userID, organizationID int64) bool {

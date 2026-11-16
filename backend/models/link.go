@@ -20,6 +20,7 @@ type Organization struct {
 	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
 	OwnerUserID int64     `json:"owner_user_id"`
+	Permissions []string  `json:"permissions"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -32,4 +33,5 @@ type OrganizationMember struct {
 
 type CreateLinkResponse struct {
 	ShortURL string `json:"short_url"`
+	Reused   bool   `json:"reused"`
 }
