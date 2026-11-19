@@ -1,78 +1,22 @@
-# React + TypeScript + Vite
+# Shorty web dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The React/Vite frontend provides account sign-up and sign-in, workspace management, and a dashboard for creating, searching, and managing short links.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Start the API and database from the repository root with `docker compose up --build`, then run:
 
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Copy `web/.env_example` to `web/.env` before running the frontend locally. Configure `VITE_API_BASE_URL`, `VITE_TOKEN_STORAGE_KEY`, and `VITE_API_PROXY_TARGET` there; the proxy target defaults to `http://localhost:8080`. For Docker builds, set `VITE_API_BASE_URL` or `VITE_TOKEN_STORAGE_KEY` in the repository-root `.env` to override its default. These `VITE_` values are included in the client bundle and must not contain secrets; changing the token storage key makes existing browser sessions unavailable. In deployment, serve the frontend and reverse-proxy the API path to the backend on the same origin. The frontend never needs the backend JWT secret.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Build and run the production frontend with Docker Compose from the repository root:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+docker compose up --build -d
 ```
+
+The Compose frontend is served on port 80 at `http://localhost/` or `http://<server-host>/`; Nginx proxies `/api/v1` requests to the `backend` Compose service. Ensure TCP port 80 is allowed by the host firewall or cloud security group for remote access. While signed in, the dashboard refreshes account, workspace, link, analytics, and visible member data every 10 minutes without reloading the page. New accounts must verify their email before signing in. Organization owners and members with `organization.manage` can manage members and assign link or organization permissions from the User management view. Link analytics are fetched from the backend API and shown per link. Active links can also download a QR code from the authenticated QR endpoint.
