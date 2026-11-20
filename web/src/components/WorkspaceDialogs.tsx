@@ -7,10 +7,10 @@ import {
   DialogContent,
   DialogTitle,
   TextField,
-  Typography,
-} from "@mui/material";
-import type { SubmitEvent } from "react";
-import type { ShortLink } from "../api/api";
+  Typography
+} from '@mui/material';
+import type { SubmitEvent } from 'react';
+import type { ShortLink } from '../api/api';
 
 export default function WorkspaceDialogs({
   linkDialogOpen,
@@ -29,7 +29,7 @@ export default function WorkspaceDialogs({
   onConfirmRevoke,
   onLongUrlChange,
   onExpiresAtChange,
-  onOrganizationNameChange,
+  onOrganizationNameChange
 }: {
   linkDialogOpen: boolean;
   organizationDialogOpen: boolean;
@@ -83,10 +83,10 @@ export default function WorkspaceDialogs({
               slotProps={{ inputLabel: { shrink: true } }}
               fullWidth
             />
-            <Typography variant="caption" color="text.secondary">
+            {/* <Typography variant="caption" color="text.secondary">
               Expiration uses your browser&apos;s local time zone (
               {Intl.DateTimeFormat().resolvedOptions().timeZone}).
-            </Typography>
+            </Typography> */}
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2.5 }}>
             <Button onClick={onLinkDialogClose} disabled={saving}>
@@ -96,7 +96,7 @@ export default function WorkspaceDialogs({
               {saving ? (
                 <CircularProgress size={20} color="inherit" />
               ) : (
-                "Create link"
+                'Create link'
               )}
             </Button>
           </DialogActions>
@@ -132,7 +132,7 @@ export default function WorkspaceDialogs({
               {saving ? (
                 <CircularProgress size={20} color="inherit" />
               ) : (
-                "Create workspace"
+                'Create workspace'
               )}
             </Button>
           </DialogActions>

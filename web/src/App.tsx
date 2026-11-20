@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { SubmitEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { SubmitEvent } from 'react';
 import {
   Alert,
   Box,
@@ -11,11 +11,11 @@ import {
   Snackbar,
   TextField,
   ThemeProvider,
-  Typography,
-} from "@mui/material";
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
-import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+  Typography
+} from '@mui/material';
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import {
   ApiError,
   clearToken,
@@ -25,39 +25,39 @@ import {
   getOrganizationAnalytics,
   getOrganizationLinks,
   getOrganizations,
-  getQRCode,
   hasSavedToken,
   registerAccount,
   revokeShortLink,
   saveToken,
   signIn,
-  updateShortLink,
-} from "./api/api";
+  updateShortLink
+} from './api/api';
 import type {
   Organization,
   OrganizationAnalytics,
   ShortLink,
-  User,
-} from "./api/api";
-import AuthScreen from "./components/AuthScreen";
+  User
+} from './api/api';
+import AuthScreen from './components/AuthScreen';
 import {
   CenteredLoader,
-  LinkAnalyticsTable,
-} from "./components/DashboardWidgets";
-import Sidebar from "./components/Sidebar";
-import Header from "./components/Header";
-import type { DashboardView } from "./components/Sidebar";
-import LinkTable from "./components/LinkTable";
-import OrganizationMembers from "./components/OrganizationMembers";
-import OverviewPanel from "./components/OverviewPanel";
-import WorkspaceDialogs from "./components/WorkspaceDialogs";
-import theme from "./theme";
-import { errorMessage } from "./utils/errors";
-import "./App.css";
+  LinkAnalyticsTable
+} from './components/DashboardWidgets';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import type { DashboardView } from './components/Sidebar';
+import LinkTable from './components/LinkTable';
+import OrganizationMembers from './components/OrganizationMembers';
+import OverviewPanel from './components/OverviewPanel';
+import QRCodeDialog from './components/QRCodeDialog';
+import WorkspaceDialogs from './components/WorkspaceDialogs';
+import theme from './theme';
+import { errorMessage } from './utils/errors';
+import './App.css';
 
 type Notice = {
   message: string;
-  severity: "success" | "warning" | "error" | "info";
+  severity: 'success' | 'warning' | 'error' | 'info';
 };
 
 const DATA_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
@@ -67,44 +67,45 @@ function App() {
   const [booting, setBooting] = useState(hasSavedToken);
   const [retrySession, setRetrySession] = useState(0);
   const [dataRefreshTick, setDataRefreshTick] = useState(0);
-  const [sessionError, setSessionError] = useState("");
+  const [sessionError, setSessionError] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [organizationId, setOrganizationId] = useState<number | "">("");
+  const [organizationId, setOrganizationId] = useState<number | ''>('');
   const [links, setLinks] = useState<ShortLink[]>([]);
   const [analytics, setAnalytics] = useState<OrganizationAnalytics | null>(
-    null,
+    null
   );
   const [analyticsPeriod, setAnalyticsPeriod] =
-    useState<OrganizationAnalytics["period"]>("week");
+    useState<OrganizationAnalytics['period']>('week');
   const [analyticsRefresh, setAnalyticsRefresh] = useState(0);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [analyticsError, setAnalyticsError] = useState("");
+  const [analyticsError, setAnalyticsError] = useState('');
   const [linksLoading, setLinksLoading] = useState(false);
-  const [dataError, setDataError] = useState("");
-  const [view, setView] = useState<DashboardView>("overview");
-  const [search, setSearch] = useState("");
+  const [dataError, setDataError] = useState('');
+  const [view, setView] = useState<DashboardView>('overview');
+  const [search, setSearch] = useState('');
   const [notice, setNotice] = useState<Notice | null>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [organizationDialogOpen, setOrganizationDialogOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<ShortLink | null>(null);
-  const [linkForm, setLinkForm] = useState({ longUrl: "", expiresAt: "" });
-  const [organizationName, setOrganizationName] = useState("");
+  const [qrTarget, setQrTarget] = useState<ShortLink | null>(null);
+  const [linkForm, setLinkForm] = useState({ longUrl: '', expiresAt: '' });
+  const [organizationName, setOrganizationName] = useState('');
   const [saving, setSaving] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   const selectedOrganization = organizations.find(
-    (organization) => organization.id === organizationId,
+    (organization) => organization.id === organizationId
   );
   const canManageUsers = Boolean(
     selectedOrganization &&
     (selectedOrganization.owner_user_id === user?.id ||
-      selectedOrganization.permissions.includes("organization.manage")),
+      selectedOrganization.permissions.includes('organization.manage'))
   );
   const canManageLinks = Boolean(
     selectedOrganization &&
     (selectedOrganization.owner_user_id === user?.id ||
-      selectedOrganization.permissions.includes("link.manage")),
+      selectedOrganization.permissions.includes('link.manage'))
   );
 
   useEffect(() => {
@@ -114,20 +115,20 @@ function App() {
       setBooting(false);
       setUser(null);
       setOrganizations([]);
-      setOrganizationId("");
+      setOrganizationId('');
       setLinks([]);
       setLinksLoading(false);
       setAnalytics(null);
       setAnalyticsLoading(false);
-      setAnalyticsError("");
+      setAnalyticsError('');
       setLinkDialogOpen(false);
       setRevokeTarget(null);
-      setView("overview");
-      setSessionError("Your session expired. Please sign in again.");
+      setView('overview');
+      setSessionError('Your session expired. Please sign in again.');
     };
-    window.addEventListener("shorty:unauthorized", handleUnauthorized);
+    window.addEventListener('shorty:unauthorized', handleUnauthorized);
     return () =>
-      window.removeEventListener("shorty:unauthorized", handleUnauthorized);
+      window.removeEventListener('shorty:unauthorized', handleUnauthorized);
   }, []);
 
   useEffect(() => {
@@ -141,12 +142,12 @@ function App() {
         setOrganizationId((current) =>
           orgs.some((organization) => organization.id === current)
             ? current
-            : (orgs[0]?.id ?? ""),
+            : (orgs[0]?.id ?? '')
         );
         setLinksLoading(orgs.length > 0);
         setAnalytics(null);
         setAnalyticsLoading(orgs.length > 0);
-        setAnalyticsError("");
+        setAnalyticsError('');
       })
       .catch((error: unknown) => {
         if (active) setSessionError(errorMessage(error));
@@ -169,7 +170,7 @@ function App() {
     if (!token) return;
     const timer = window.setInterval(
       () => setDataRefreshTick((current) => current + 1),
-      DATA_REFRESH_INTERVAL_MS,
+      DATA_REFRESH_INTERVAL_MS
     );
     return () => window.clearInterval(timer);
   }, [token]);
@@ -192,7 +193,7 @@ function App() {
       .then((result) => {
         if (active) {
           setLinks(result);
-          setDataError("");
+          setDataError('');
         }
       })
       .catch((error: unknown) => {
@@ -215,7 +216,7 @@ function App() {
       .then((result) => {
         if (active) {
           setAnalytics(result);
-          setAnalyticsError("");
+          setAnalyticsError('');
         }
       })
       .catch((error: unknown) => {
@@ -232,7 +233,7 @@ function App() {
     analyticsRefresh,
     dataRefreshTick,
     organizationId,
-    token,
+    token
   ]);
 
   const filteredLinks = useMemo(() => {
@@ -240,8 +241,8 @@ function App() {
     if (!query) return links;
     return links.filter((link) =>
       [link.short_url, link.long_url, link.short_url_code].some((value) =>
-        value.toLowerCase().includes(query),
-      ),
+        value.toLowerCase().includes(query)
+      )
     );
   }, [links, search]);
 
@@ -252,19 +253,19 @@ function App() {
     setBooting(true);
     setLinksLoading(true);
     setAnalyticsLoading(true);
-    setAnalyticsError("");
+    setAnalyticsError('');
     setRetrySession((value) => value + 1);
-    setSessionError("");
-    setDataError("");
+    setSessionError('');
+    setDataError('');
   };
 
   const handleRegister = async (
     email: string,
     password: string,
-    displayName: string,
+    displayName: string
   ) => {
     await registerAccount(email, password, displayName);
-    setSessionError("");
+    setSessionError('');
   };
 
   const handleSignOut = () => {
@@ -273,20 +274,20 @@ function App() {
     setBooting(false);
     setUser(null);
     setOrganizations([]);
-    setOrganizationId("");
+    setOrganizationId('');
     setLinks([]);
     setLinksLoading(false);
     setAnalytics(null);
     setAnalyticsLoading(false);
-    setAnalyticsError("");
+    setAnalyticsError('');
     setLinkDialogOpen(false);
     setRevokeTarget(null);
-    setView("overview");
+    setView('overview');
     setNotice(null);
   };
 
   const handleCreateOrganization = async (
-    event: SubmitEvent<HTMLFormElement>,
+    event: SubmitEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
     setSaving(true);
@@ -295,15 +296,15 @@ function App() {
       setOrganizations((current) => [...current, organization]);
       setOrganizationId(organization.id);
       setLinksLoading(true);
-      setDataError("");
+      setDataError('');
       setAnalytics(null);
       setAnalyticsLoading(true);
-      setAnalyticsError("");
-      setOrganizationName("");
+      setAnalyticsError('');
+      setOrganizationName('');
       setOrganizationDialogOpen(false);
-      setNotice({ message: "Workspace created.", severity: "success" });
+      setNotice({ message: 'Workspace created.', severity: 'success' });
     } catch (error) {
-      setNotice({ message: errorMessage(error), severity: "error" });
+      setNotice({ message: errorMessage(error), severity: 'error' });
     } finally {
       setSaving(false);
     }
@@ -319,32 +320,32 @@ function App() {
         linkForm.longUrl.trim(),
         linkForm.expiresAt
           ? new Date(linkForm.expiresAt).toISOString()
-          : undefined,
+          : undefined
       );
       setLinkDialogOpen(false);
-      setLinkForm({ longUrl: "", expiresAt: "" });
+      setLinkForm({ longUrl: '', expiresAt: '' });
       setLinksLoading(true);
-      setDataError("");
+      setDataError('');
       await loadLinks();
       setAnalyticsLoading(true);
-      setAnalyticsError("");
+      setAnalyticsError('');
       setAnalyticsRefresh((value) => value + 1);
       setNotice(
         result.reused
           ? {
               message:
-                "A link for this URL already exists. Reusing the existing short link.",
-              severity: "warning",
+                'A link for this URL already exists. Reusing the existing short link.',
+              severity: 'warning'
             }
-          : { message: "Your short link is ready.", severity: "success" },
+          : { message: 'Your short link is ready.', severity: 'success' }
       );
     } catch (error) {
       setNotice({
         message: errorMessage(error),
         severity:
           error instanceof ApiError && error.status === 409
-            ? "warning"
-            : "error",
+            ? 'warning'
+            : 'error'
       });
     } finally {
       setSaving(false);
@@ -355,51 +356,42 @@ function App() {
     try {
       await navigator.clipboard.writeText(url);
       setNotice({
-        message: "Short link copied to clipboard.",
-        severity: "success",
+        message: 'Short link copied to clipboard.',
+        severity: 'success'
       });
     } catch {
       setNotice({
         message:
-          "Could not access the clipboard. Copy the link directly instead.",
-        severity: "error",
+          'Could not access the clipboard. Copy the link directly instead.',
+        severity: 'error'
       });
     }
   };
 
-  const handleQRCode = async (link: ShortLink) => {
-    try {
-      const image = await getQRCode(link.short_url_code);
-      const imageUrl = URL.createObjectURL(image);
-      const download = document.createElement("a");
-      download.href = imageUrl;
-      download.download = `${link.short_url_code}.png`;
-      document.body.append(download);
-      download.click();
-      download.remove();
-      window.setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
-      setNotice({ message: "QR code downloaded.", severity: "success" });
-    } catch (error) {
-      setNotice({ message: errorMessage(error), severity: "error" });
-    }
+  const handleQRCode = (link: ShortLink) => {
+    setQrTarget(link);
   };
+
+  const handleQRCodeError = useCallback((message: string) => {
+    setNotice({ message, severity: 'error' });
+  }, []);
 
   const handleToggleLink = async (link: ShortLink) => {
     if (!canManageLinks) return;
     try {
-      const nextStatus = link.status === "active" ? "disabled" : "active";
+      const nextStatus = link.status === 'active' ? 'disabled' : 'active';
       const updated = await updateShortLink(link.short_url_code, nextStatus);
       setLinks((current) =>
         current.map((item) =>
-          item.id === link.id ? { ...item, status: updated.status } : item,
-        ),
+          item.id === link.id ? { ...item, status: updated.status } : item
+        )
       );
       setNotice({
-        message: `Link ${nextStatus === "active" ? "enabled" : "disabled"}.`,
-        severity: "success",
+        message: `Link ${nextStatus === 'active' ? 'enabled' : 'disabled'}.`,
+        severity: 'success'
       });
     } catch (error) {
-      setNotice({ message: errorMessage(error), severity: "error" });
+      setNotice({ message: errorMessage(error), severity: 'error' });
     }
   };
 
@@ -409,16 +401,16 @@ function App() {
       await revokeShortLink(revokeTarget.short_url_code);
       setLinks((current) =>
         current.map((item) =>
-          item.id === revokeTarget.id ? { ...item, status: "revoked" } : item,
-        ),
+          item.id === revokeTarget.id ? { ...item, status: 'revoked' } : item
+        )
       );
       setNotice({
-        message: "Link revoked. It can no longer be reactivated.",
-        severity: "success",
+        message: 'Link revoked. It can no longer be reactivated.',
+        severity: 'success'
       });
       setRevokeTarget(null);
     } catch (error) {
-      setNotice({ message: errorMessage(error), severity: "error" });
+      setNotice({ message: errorMessage(error), severity: 'error' });
     }
   };
 
@@ -460,7 +452,7 @@ function App() {
         <Box component="main" className="dashboard-main">
           <Header
             view={view}
-            organizationName={selectedOrganization?.name ?? ""}
+            organizationName={selectedOrganization?.name ?? ''}
             canManageLinks={canManageLinks}
             onCreateWorkspace={() => setOrganizationDialogOpen(true)}
             onCreateLink={() => setLinkDialogOpen(true)}
@@ -477,7 +469,7 @@ function App() {
                     onClick={() => {
                       setBooting(true);
                       setLinksLoading(true);
-                      setDataError("");
+                      setDataError('');
                       setRetrySession((value) => value + 1);
                       void loadLinks();
                     }}
@@ -521,22 +513,22 @@ function App() {
               </Card>
             ) : (
               <>
-                {view === "overview" && (
+                {view === 'overview' && (
                   <OverviewPanel
-                    userName={user.display_name || user.email.split("@")[0]}
+                    userName={user.display_name || user.email.split('@')[0]}
                     canManageLinks={canManageLinks}
                     links={links}
                     linksLoading={linksLoading}
                     currentTime={currentTime}
                     onCreateLink={() => setLinkDialogOpen(true)}
-                    onViewAllLinks={() => setView("links")}
+                    onViewAllLinks={() => setView('links')}
                     onCopy={handleCopy}
                     onQRCode={handleQRCode}
                     onToggle={handleToggleLink}
                     onRevoke={setRevokeTarget}
                   />
                 )}
-                {view === "links" && (
+                {view === 'links' && (
                   <Card className="content-card links-page-card">
                     <CardContent>
                       <Box className="section-heading">
@@ -558,10 +550,10 @@ function App() {
                               startAdornment: (
                                 <SearchRoundedIcon
                                   fontSize="small"
-                                  sx={{ mr: 1, color: "text.secondary" }}
+                                  sx={{ mr: 1, color: 'text.secondary' }}
                                 />
-                              ),
-                            },
+                              )
+                            }
                           }}
                         />
                       </Box>
@@ -581,7 +573,7 @@ function App() {
                     </CardContent>
                   </Card>
                 )}
-                {view === "analytics" && (
+                {view === 'analytics' && (
                   <LinkAnalyticsTable
                     links={links}
                     analytics={analytics}
@@ -590,12 +582,12 @@ function App() {
                     error={analyticsError}
                     onPeriodChange={(period) => {
                       setAnalyticsLoading(true);
-                      setAnalyticsError("");
+                      setAnalyticsError('');
                       setAnalyticsPeriod(period);
                     }}
                   />
                 )}
-                {view === "members" && canManageUsers && organizationId && (
+                {view === 'members' && canManageUsers && organizationId && (
                   <OrganizationMembers
                     key={organizationId}
                     organizationId={organizationId}
@@ -639,11 +631,19 @@ function App() {
         }
         onOrganizationNameChange={setOrganizationName}
       />
+      {qrTarget && (
+        <QRCodeDialog
+          key={qrTarget.short_url_code}
+          link={qrTarget}
+          onClose={() => setQrTarget(null)}
+          onError={handleQRCodeError}
+        />
+      )}
       <Snackbar
         open={Boolean(notice)}
         autoHideDuration={5000}
         onClose={() => setNotice(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         {notice ? (
           <Alert

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { SubmitEvent } from "react";
+import { useState } from 'react';
+import type { SubmitEvent } from 'react';
 import {
   Alert,
   Box,
@@ -8,44 +8,44 @@ import {
   CircularProgress,
   Divider,
   TextField,
-  Typography,
-} from "@mui/material";
-import { errorMessage } from "../utils/errors";
+  Typography
+} from '@mui/material';
+import { errorMessage } from '../utils/errors';
 
 export default function AuthScreen({
   onSignIn,
   onRegister,
-  sessionError,
+  sessionError
 }: {
   onSignIn: (email: string, password: string) => Promise<void>;
   onRegister: (
     email: string,
     password: string,
-    displayName: string,
+    displayName: string
   ) => Promise<void>;
   sessionError: string;
 }) {
   const [registering, setRegistering] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const submit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setBusy(true);
-    setError("");
-    setSuccess("");
+    setError('');
+    setSuccess('');
     try {
       if (registering) {
         await onRegister(email, password, displayName);
         setSuccess(
-          "Account created. Check your email for the verification link, then sign in.",
+          'Account created. Check your email for the verification link, then sign in.'
         );
         setRegistering(false);
-        setPassword("");
+        setPassword('');
       } else {
         await onSignIn(email, password);
       }
@@ -74,12 +74,12 @@ export default function AuthScreen({
           sx={{ fontWeight: 750 }}
           className="auth-heading"
         >
-          {registering ? "Create your account" : "Welcome back"}
+          {registering ? 'Create your account' : 'Welcome back'}
         </Typography>
         <Typography color="text.secondary" sx={{ mb: 3 }}>
           {registering
-            ? "Sign up to start organizing and sharing your links."
-            : "Sign in to manage your links and see how they perform."}
+            ? 'Sign up to start organizing and sharing your links.'
+            : 'Sign in to manage your links and see how they perform.'}
         </Typography>
         {sessionError && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -121,13 +121,13 @@ export default function AuthScreen({
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            autoComplete={registering ? "new-password" : "current-password"}
+            autoComplete={registering ? 'new-password' : 'current-password'}
             slotProps={{
               htmlInput: registering
                 ? { minLength: 12, maxLength: 30 }
-                : { maxLength: 30 },
+                : { maxLength: 30 }
             }}
-            helperText={registering ? "Use at least 12 characters." : undefined}
+            helperText={registering ? 'Use at least 12 characters.' : undefined}
             required
             fullWidth
           />
@@ -141,28 +141,28 @@ export default function AuthScreen({
             {busy ? (
               <CircularProgress size={22} color="inherit" />
             ) : registering ? (
-              "Create account"
+              'Create account'
             ) : (
-              "Sign in"
+              'Sign in'
             )}
           </Button>
         </Box>
         <Divider sx={{ my: 2.5 }} />
         <Typography
-          sx={{ textAlign: "center" }}
+          sx={{ textAlign: 'center' }}
           color="text.secondary"
           variant="body2"
         >
-          {registering ? "Already have an account? " : "New to Shorty? "}
+          {registering ? 'Already have an account? ' : 'New to Shorty? '}
           <Button
             size="small"
             onClick={() => {
               setRegistering(!registering);
-              setError("");
-              setSuccess("");
+              setError('');
+              setSuccess('');
             }}
           >
-            {registering ? "Sign in" : "Create an account"}
+            {registering ? 'Sign in' : 'Create an account'}
           </Button>
         </Typography>
       </Card>

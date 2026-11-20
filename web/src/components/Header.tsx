@@ -1,14 +1,14 @@
-import { Box, Button, Typography } from "@mui/material";
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import { Box, Button, Typography } from '@mui/material';
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
 
-export type DashboardView = "overview" | "links" | "analytics" | "members";
+export type DashboardView = 'overview' | 'links' | 'analytics' | 'members';
 
 export default function Header({
   view,
   organizationName,
   canManageLinks,
   onCreateWorkspace,
-  onCreateLink,
+  onCreateLink
 }: {
   view: DashboardView;
   organizationName: string;
@@ -17,13 +17,13 @@ export default function Header({
   onCreateLink: () => void;
 }) {
   const viewLabel =
-    view === "overview"
-      ? "Overview"
-      : view === "links"
-        ? "My links"
-        : view === "analytics"
-          ? "Link analytics"
-          : "User management";
+    view === 'overview'
+      ? 'Overview'
+      : view === 'links'
+        ? 'My links'
+        : view === 'analytics'
+          ? 'Link analytics'
+          : 'User management';
 
   return (
     <header className="topbar">
@@ -32,7 +32,7 @@ export default function Header({
           Workspace / {viewLabel}
         </Typography>
         <Typography variant="h5" sx={{ fontWeight: 750 }}>
-          {view === "overview" ? "Dashboard" : viewLabel}
+          {view === 'overview' ? 'Dashboard' : viewLabel}
         </Typography>
       </Box>
       <Box className="topbar-actions">
@@ -41,9 +41,9 @@ export default function Header({
             className="organization-name"
             variant="subtitle1"
             sx={{
-              color: "text.primary",
+              color: 'text.primary',
               fontWeight: 700,
-              letterSpacing: "-0.02em",
+              letterSpacing: '-0.02em'
             }}
             title={organizationName}
           >

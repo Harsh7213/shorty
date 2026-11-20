@@ -1,11 +1,11 @@
-import { Box, Button, Card, CardContent, Typography } from "@mui/material";
-import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import ArrowOutwardRoundedIcon from "@mui/icons-material/ArrowOutwardRounded";
-import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
-import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
-import type { ShortLink } from "../api/api";
-import { CenteredLoader, StatCard } from "./DashboardWidgets";
-import LinkTable from "./LinkTable";
+import { Box, Button, Card, CardContent, Typography } from '@mui/material';
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded';
+import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
+import type { ShortLink } from '../api/api';
+import { CenteredLoader, StatCard } from './DashboardWidgets';
+import LinkTable from './LinkTable';
 
 export default function OverviewPanel({
   userName,
@@ -18,7 +18,7 @@ export default function OverviewPanel({
   onCopy,
   onQRCode,
   onToggle,
-  onRevoke,
+  onRevoke
 }: {
   userName: string;
   canManageLinks: boolean;
@@ -34,12 +34,12 @@ export default function OverviewPanel({
 }) {
   const activeLinks = links.filter(
     (link) =>
-      link.status === "active" &&
-      (!link.expires_at || new Date(link.expires_at).getTime() > currentTime),
+      link.status === 'active' &&
+      (!link.expires_at || new Date(link.expires_at).getTime() > currentTime)
   );
   const totalClicks = links.reduce(
     (total, link) => total + link.total_clicks,
-    0,
+    0
   );
   const topLinks = [...links]
     .sort((a, b) => b.total_clicks - a.total_clicks)
@@ -54,7 +54,7 @@ export default function OverviewPanel({
             Good to see you, {userName} 👋
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Here’s what’s happening with your short links.
+            Here's what's happening with your short links.
           </Typography>
         </Box>
         {canManageLinks && (
@@ -73,7 +73,7 @@ export default function OverviewPanel({
           value={links.length.toLocaleString()}
           icon={<LinkRoundedIcon className="link-icon" />}
           tone="purple"
-          footnote="Across this workspace"
+          footnote="Across your workspace"
         />
         <StatCard
           label="Total clicks"
@@ -111,6 +111,7 @@ export default function OverviewPanel({
             ) : (
               <LinkTable
                 canManageLinks={canManageLinks}
+                showCountries={false}
                 links={links.slice(0, 5)}
                 currentTime={currentTime}
                 onCopy={onCopy}
@@ -142,7 +143,7 @@ export default function OverviewPanel({
                   <Box className="click-bar">
                     <span
                       style={{
-                        width: `${(link.total_clicks / maxClicks) * 100}%`,
+                        width: `${(link.total_clicks / maxClicks) * 100}%`
                       }}
                     />
                   </Box>

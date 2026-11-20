@@ -1,12 +1,12 @@
-import { Avatar, Box, Typography } from "@mui/material";
-import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
-import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
-import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
-import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
-import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
-import type { User } from "../api/api";
+import { Avatar, Box, Typography } from '@mui/material';
+import BarChartRoundedIcon from '@mui/icons-material/BarChartRounded';
+import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
+import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded';
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded';
+import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
+import type { User } from '../api/api';
 
-export type DashboardView = "overview" | "links" | "analytics" | "members";
+export type DashboardView = 'overview' | 'links' | 'analytics' | 'members';
 
 export default function Sidebar({
   user,
@@ -14,7 +14,7 @@ export default function Sidebar({
   linkCount,
   canManageUsers,
   onViewChange,
-  onSignOut,
+  onSignOut
 }: {
   user: User;
   view: DashboardView;
@@ -35,28 +35,28 @@ export default function Sidebar({
       </Box>
       <Typography className="nav-caption">WORKSPACE</Typography>
       <button
-        className={`nav-item ${view === "overview" ? "nav-item-active" : ""}`}
-        onClick={() => onViewChange("overview")}
+        className={`nav-item ${view === 'overview' ? 'nav-item-active' : ''}`}
+        onClick={() => onViewChange('overview')}
       >
         <DashboardRoundedIcon fontSize="small" /> Overview
       </button>
       <button
-        className={`nav-item ${view === "links" ? "nav-item-active" : ""}`}
-        onClick={() => onViewChange("links")}
+        className={`nav-item ${view === 'links' ? 'nav-item-active' : ''}`}
+        onClick={() => onViewChange('links')}
       >
         <LinkRoundedIcon className="link-icon" fontSize="small" /> My links
         <span className="nav-count">{linkCount}</span>
       </button>
       <button
-        className={`nav-item ${view === "analytics" ? "nav-item-active" : ""}`}
-        onClick={() => onViewChange("analytics")}
+        className={`nav-item ${view === 'analytics' ? 'nav-item-active' : ''}`}
+        onClick={() => onViewChange('analytics')}
       >
         <BarChartRoundedIcon fontSize="small" /> Link analytics
       </button>
       {canManageUsers && (
         <button
-          className={`nav-item ${view === "members" ? "nav-item-active" : ""}`}
-          onClick={() => onViewChange("members")}
+          className={`nav-item ${view === 'members' ? 'nav-item-active' : ''}`}
+          onClick={() => onViewChange('members')}
         >
           <GroupsRoundedIcon fontSize="small" /> User management
         </button>
@@ -78,7 +78,7 @@ export default function Sidebar({
             {(user.display_name || user.email).slice(0, 1).toUpperCase()}
           </Avatar>
           <span className="profile-text">
-            <strong>{user.display_name || "Shorty user"}</strong>
+            <strong>{user.display_name || 'Shorty user'}</strong>
             <small>{user.email}</small>
           </span>
           <LogoutRoundedIcon fontSize="small" />

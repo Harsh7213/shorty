@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 import {
   Box,
   Card,
@@ -6,16 +6,16 @@ import {
   CircularProgress,
   ToggleButton,
   ToggleButtonGroup,
-  Typography,
-} from "@mui/material";
-import type { OrganizationAnalytics, ShortLink } from "../api/api";
+  Typography
+} from '@mui/material';
+import type { OrganizationAnalytics, ShortLink } from '../api/api';
 
 export function StatCard({
   label,
   value,
   icon,
   tone,
-  footnote,
+  footnote
 }: {
   label: string;
   value: string;
@@ -56,17 +56,17 @@ export function CenteredLoader() {
 function LinkSparkline({
   clicks,
   shortUrl,
-  period,
+  period
 }: {
-  clicks: OrganizationAnalytics["links"][number]["clicks"];
+  clicks: OrganizationAnalytics['links'][number]['clicks'];
   shortUrl: string;
-  period: OrganizationAnalytics["period"];
+  period: OrganizationAnalytics['period'];
 }) {
   const maxClicks = Math.max(1, ...clicks.map((day) => day.clicks));
   const points = clicks.map((day, index) => ({
     x: clicks.length > 1 ? 3 + (index * 174) / (clicks.length - 1) : 90,
     y: 33 - (day.clicks / maxClicks) * 27,
-    ...day,
+    ...day
   }));
 
   return (
@@ -79,7 +79,7 @@ function LinkSparkline({
       <line x1="2" y1="34" x2="178" y2="34" className="chart-axis" />
       {points.length > 1 && (
         <polyline
-          points={points.map(({ x, y }) => `${x},${y}`).join(" ")}
+          points={points.map(({ x, y }) => `${x},${y}`).join(' ')}
           className="chart-line"
         />
       )}
@@ -99,12 +99,12 @@ function LinkSparkline({
 }
 
 function CountryClicksChart({
-  countries,
+  countries
 }: {
-  countries: OrganizationAnalytics["countries"];
+  countries: OrganizationAnalytics['countries'];
 }) {
   const maxClicks = Math.max(1, ...countries.map((country) => country.clicks));
-  const countryNames = new Intl.DisplayNames(undefined, { type: "region" });
+  const countryNames = new Intl.DisplayNames(undefined, { type: 'region' });
 
   return (
     <Box className="country-clicks-chart">
@@ -127,11 +127,11 @@ function CountryClicksChart({
           {countries.map((country) => {
             const name = country.country_code
               ? (countryNames.of(country.country_code) ?? country.country_code)
-              : "Unknown";
+              : 'Unknown';
             return (
               <Box
                 className="country-click-row"
-                key={country.country_code || "unknown"}
+                key={country.country_code || 'unknown'}
               >
                 <Box className="country-click-heading">
                   <Typography variant="body2">{name}</Typography>
@@ -168,17 +168,17 @@ export function LinkAnalyticsTable({
   period,
   loading,
   error,
-  onPeriodChange,
+  onPeriodChange
 }: {
   links: ShortLink[];
   analytics: OrganizationAnalytics | null;
-  period: OrganizationAnalytics["period"];
+  period: OrganizationAnalytics['period'];
   loading: boolean;
   error: string;
-  onPeriodChange: (period: OrganizationAnalytics["period"]) => void;
+  onPeriodChange: (period: OrganizationAnalytics['period']) => void;
 }) {
   const dailyClicks = new Map(
-    analytics?.links.map((link) => [link.link_id, link.clicks]) ?? [],
+    analytics?.links.map((link) => [link.link_id, link.clicks]) ?? []
   );
 
   return (
@@ -197,7 +197,7 @@ export function LinkAnalyticsTable({
             size="small"
             exclusive
             value={period}
-            onChange={(_, value: OrganizationAnalytics["period"] | null) =>
+            onChange={(_, value: OrganizationAnalytics['period'] | null) =>
               value && onPeriodChange(value)
             }
             aria-label="Analytics time period"
