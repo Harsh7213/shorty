@@ -195,12 +195,14 @@ export function getOrganizationLinks(organizationId: number) {
   return request<ShortLink[]>(`/org/${organizationId}/links`);
 }
 
-export function getOrganizationAnalytics(
+export function getLinkAnalytics(
   organizationId: number,
   period: OrganizationAnalytics["period"],
+  linkId?: number,
 ) {
+  const linkQuery = linkId === undefined ? "" : `&link_id=${linkId}`;
   return request<OrganizationAnalytics>(
-    `/org/${organizationId}/analytics?period=${period}`,
+    `/org/${organizationId}/analytics?period=${period}${linkQuery}`,
   );
 }
 

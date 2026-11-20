@@ -424,21 +424,24 @@ func ListOrganizationLinks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetOrganizationAnalytics returns daily and country click totals for an organization.
-// @Summary Get organization analytics
+// GetLinkAnalytics returns daily and country click totals for an organization.
+// @Summary Get link analytics
 // @Description Available to all organization members, including members without link.manage.
+// @Description By default, returns country totals without daily link series.
+// @Description When link_id is specified, returns daily analytics only for that link.
 // @Tags Links
 // @Produce json
 // @Security BearerAuth
 // @Param organizationID path int true "Organization ID"
 // @Param period query string false "Reporting window" Enums(week,month) default(week)
+// @Param link_id query int false "Include daily analytics for this link only"
 // @Success 200 {object} map[string]interface{}
-// @Failure 400 {string} string "Invalid organization ID or period"
+// @Failure 400 {string} string "Invalid organization ID, period, or link_id"
 // @Failure 401 {string} string "Authentication required"
 // @Failure 403 {string} string "No access to this organization"
 // @Failure 500 {string} string "Failed to load analytics"
 // @Router /api/v1/org/{organizationID}/analytics [get]
-func GetOrganizationAnalytics(w http.ResponseWriter, r *http.Request) {
+func GetLinkAnalytics(w http.ResponseWriter, r *http.Request) {
 	userID, ok := auth.UserID(r)
 	if !ok {
 		http.Error(w, "Authentication required", http.StatusUnauthorized)
@@ -465,26 +468,14 @@ func GetOrganizationAnalytics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.DB.QueryContext(r.Context(), `
-		SELECT l.id, TO_CHAR(calendar.day, 'YYYY-MM-DD'), COUNT(c.id)
-		FROM shorty.links l
-		CROSS JOIN GENERATE_SERIES(
-			CURRENT_DATE - ($2::int - 1),
-			CURRENT_DATE,
-			INTERVAL '1 day'
-		) AS calendar(day)
-		LEFT JOIN shorty.click_events c
-			ON c.link_id = l.id
-			AND c.clicked_at >= calendar.day
-			AND c.clicked_at < calendar.day + INTERVAL '1 day'
-		WHERE l.organization_id = $1
-		GROUP BY l.id, l.created_at, calendar.day
-		ORDER BY l.created_at DESC, l.id, calendar.day`, organizationID, days)
-	if err != nil {
-		http.Error(w, "Failed to load organization analytics", http.StatusInternalServerError)
-		return
+	var linkID int64
+	if rawLinkID := r.URL.Query().Get("link_id"); rawLinkID != "" {
+		linkID, err = strconv.ParseInt(rawLinkID, 10, 64)
+		if err != nil || linkID < 1 {
+			http.Error(w, "A valid link_id is required", http.StatusBadRequest)
+			return
+		}
 	}
-	defer rows.Close()
 
 	type dailyClicks struct {
 		Date   string `json:"date"`
@@ -499,51 +490,76 @@ func GetOrganizationAnalytics(w http.ResponseWriter, r *http.Request) {
 		Clicks      int64  `json:"clicks"`
 	}
 	links := make([]linkAnalytics, 0)
-	for rows.Next() {
-		var linkID int64
-		var day dailyClicks
-		if err := rows.Scan(&linkID, &day.Date, &day.Clicks); err != nil {
-			http.Error(w, "Failed to read organization analytics", http.StatusInternalServerError)
+	if linkID != 0 {
+		rows, err := db.DB.QueryContext(r.Context(), `
+			SELECT l.id, TO_CHAR(calendar.day, 'YYYY-MM-DD'), COUNT(c.id)
+			FROM shorty.links l
+			CROSS JOIN GENERATE_SERIES(
+				CURRENT_DATE - ($2::int - 1),
+				CURRENT_DATE,
+				INTERVAL '1 day'
+			) AS calendar(day)
+			LEFT JOIN shorty.click_events c
+				ON c.link_id = l.id
+				AND c.clicked_at >= calendar.day
+				AND c.clicked_at < calendar.day + INTERVAL '1 day'
+			WHERE l.organization_id = $1
+			  AND l.id = $3
+			GROUP BY l.id, l.created_at, calendar.day
+			ORDER BY l.created_at DESC, l.id, calendar.day`,
+			organizationID, days, linkID)
+		if err != nil {
+			http.Error(w, "Failed to load link analytics", http.StatusInternalServerError)
 			return
 		}
-		if len(links) == 0 || links[len(links)-1].LinkID != linkID {
-			links = append(links, linkAnalytics{
-				LinkID: linkID,
-				Clicks: make([]dailyClicks, 0, days),
-			})
+		defer rows.Close()
+		for rows.Next() {
+			var resultLinkID int64
+			var day dailyClicks
+			if err := rows.Scan(&resultLinkID, &day.Date, &day.Clicks); err != nil {
+				http.Error(w, "Failed to read link analytics", http.StatusInternalServerError)
+				return
+			}
+			if len(links) == 0 || links[len(links)-1].LinkID != resultLinkID {
+				links = append(links, linkAnalytics{
+					LinkID: resultLinkID,
+					Clicks: make([]dailyClicks, 0, days),
+				})
+			}
+			links[len(links)-1].Clicks = append(links[len(links)-1].Clicks, day)
 		}
-		links[len(links)-1].Clicks = append(links[len(links)-1].Clicks, day)
+		if err := rows.Err(); err != nil {
+			http.Error(w, "Failed to read link analytics", http.StatusInternalServerError)
+			return
+		}
 	}
-	if err := rows.Err(); err != nil {
-		http.Error(w, "Failed to read organization analytics", http.StatusInternalServerError)
-		return
-	}
-
-	countryRows, err := db.DB.QueryContext(r.Context(), `
-		SELECT COALESCE(c.country_code, ''), COUNT(*)
-		FROM shorty.click_events c
-		JOIN shorty.links l ON l.id = c.link_id
-		WHERE l.organization_id = $1
-		GROUP BY c.country_code
-		ORDER BY COUNT(*) DESC, c.country_code ASC NULLS LAST`, organizationID)
-	if err != nil {
-		http.Error(w, "Failed to load country analytics", http.StatusInternalServerError)
-		return
-	}
-	defer countryRows.Close()
 
 	countries := make([]countryClicks, 0)
-	for countryRows.Next() {
-		var country countryClicks
-		if err := countryRows.Scan(&country.CountryCode, &country.Clicks); err != nil {
+	if linkID == 0 {
+		countryRows, err := db.DB.QueryContext(r.Context(), `
+			SELECT COALESCE(c.country_code, ''), COUNT(*)
+			FROM shorty.click_events c
+			JOIN shorty.links l ON l.id = c.link_id
+			WHERE l.organization_id = $1
+			GROUP BY c.country_code
+			ORDER BY COUNT(*) DESC, c.country_code ASC NULLS LAST`, organizationID)
+		if err != nil {
+			http.Error(w, "Failed to load country analytics", http.StatusInternalServerError)
+			return
+		}
+		defer countryRows.Close()
+		for countryRows.Next() {
+			var country countryClicks
+			if err := countryRows.Scan(&country.CountryCode, &country.Clicks); err != nil {
+				http.Error(w, "Failed to read country analytics", http.StatusInternalServerError)
+				return
+			}
+			countries = append(countries, country)
+		}
+		if err := countryRows.Err(); err != nil {
 			http.Error(w, "Failed to read country analytics", http.StatusInternalServerError)
 			return
 		}
-		countries = append(countries, country)
-	}
-	if err := countryRows.Err(); err != nil {
-		http.Error(w, "Failed to read country analytics", http.StatusInternalServerError)
-		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

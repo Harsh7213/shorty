@@ -22,7 +22,7 @@ import {
   createOrganization,
   createShortLink,
   getCurrentUser,
-  getOrganizationAnalytics,
+  getLinkAnalytics,
   getOrganizationLinks,
   getOrganizations,
   hasSavedToken,
@@ -41,6 +41,7 @@ import type {
 import AuthScreen from './components/AuthScreen';
 import {
   CenteredLoader,
+  CountryClicksChart,
   LinkAnalyticsTable
 } from './components/DashboardWidgets';
 import Sidebar from './components/Sidebar';
@@ -75,8 +76,6 @@ function App() {
   const [analytics, setAnalytics] = useState<OrganizationAnalytics | null>(
     null
   );
-  const [analyticsPeriod, setAnalyticsPeriod] =
-    useState<OrganizationAnalytics['period']>('week');
   const [analyticsRefresh, setAnalyticsRefresh] = useState(0);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState('');
@@ -212,7 +211,7 @@ function App() {
       return;
     }
     let active = true;
-    getOrganizationAnalytics(organizationId, analyticsPeriod)
+    getLinkAnalytics(organizationId, 'week')
       .then((result) => {
         if (active) {
           setAnalytics(result);
@@ -229,7 +228,6 @@ function App() {
       active = false;
     };
   }, [
-    analyticsPeriod,
     analyticsRefresh,
     dataRefreshTick,
     organizationId,
@@ -574,18 +572,19 @@ function App() {
                   </Card>
                 )}
                 {view === 'analytics' && (
-                  <LinkAnalyticsTable
-                    links={links}
-                    analytics={analytics}
-                    period={analyticsPeriod}
-                    loading={analyticsLoading}
-                    error={analyticsError}
-                    onPeriodChange={(period) => {
-                      setAnalyticsLoading(true);
-                      setAnalyticsError('');
-                      setAnalyticsPeriod(period);
-                    }}
-                  />
+                  <>
+                    {!analyticsLoading && !analyticsError && (
+                      <CountryClicksChart
+                        countries={analytics?.countries ?? []}
+                      />
+                    )}
+                    <LinkAnalyticsTable
+                      organizationId={organizationId}
+                      links={links}
+                      loading={analyticsLoading}
+                      error={analyticsError}
+                    />
+                  </>
                 )}
                 {view === 'members' && canManageUsers && organizationId && (
                   <OrganizationMembers

@@ -763,14 +763,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Available to all organization members, including members without link.manage.",
+                "description": "Available to all organization members, including members without link.manage. By default, returns country totals without daily link series. When link_id is specified, returns daily analytics only for that link.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Links"
                 ],
-                "summary": "Get organization analytics",
+                "summary": "Get link analytics",
                 "parameters": [
                     {
                         "type": "integer",
@@ -789,6 +789,12 @@ const docTemplate = `{
                         "description": "Reporting window",
                         "name": "period",
                         "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Include daily analytics for this link only",
+                        "name": "link_id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -800,7 +806,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid organization ID or period",
+                        "description": "Invalid organization ID, period, or link_id",
                         "schema": {
                             "type": "string"
                         }

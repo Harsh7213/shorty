@@ -28,7 +28,7 @@ func RegisterRoutes() {
 	http.Handle("POST "+basePath+"/org/{organizationID}/members", auth.RequireJWT(http.HandlerFunc(controllers.AddOrganizationMember)))
 	http.Handle("DELETE "+basePath+"/org/{organizationID}/members/{userID}", auth.RequireJWT(http.HandlerFunc(controllers.RemoveOrganizationMember)))
 	http.Handle("GET "+basePath+"/org/{organizationID}/links", auth.RequireJWT(http.HandlerFunc(controllers.ListOrganizationLinks)))
-	http.Handle("GET "+basePath+"/org/{organizationID}/analytics", auth.RequireJWT(http.HandlerFunc(controllers.GetOrganizationAnalytics)))
+	http.Handle("GET "+basePath+"/org/{organizationID}/analytics", auth.RequireJWT(http.HandlerFunc(controllers.GetLinkAnalytics)))
 	http.Handle("POST "+basePath+"/link", auth.RequireJWT(http.HandlerFunc(controllers.CreateLink)))
 	http.Handle("PATCH "+basePath+"/link/{code}", auth.RequireJWT(http.HandlerFunc(controllers.UpdateLink)))
 	http.Handle("DELETE "+basePath+"/link/{code}", auth.RequireJWT(http.HandlerFunc(controllers.DeleteLink)))

@@ -318,7 +318,6 @@
 
 .stat-label {
   margin: 5px 0 4px !important;
-  font-size: 12px !important;
 }
 
 .stat-card .MuiTypography-h4 {
@@ -328,9 +327,13 @@
 
 .overview-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(270px, 0.9fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
   gap: 19px;
+}
+
+.recent-card {
+  grid-column: span 2;
 }
 
 .link-analytics-card .section-heading {
@@ -342,6 +345,7 @@
   padding: 18px;
   border: 1px solid #eceef4;
   border-radius: 12px;
+  background: #fff;
 }
 
 .country-clicks-list {
@@ -456,6 +460,13 @@
 
 .links-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.recent-card .links-table th:last-child,
+.recent-card .links-table td:last-child {
+  box-sizing: border-box;
+  width: 138px;
+  min-width: 138px;
 }
 
 .link-cell {
@@ -783,10 +794,6 @@
   .topbar {
     padding-inline: 23px;
   }
-
-  .overview-grid {
-    grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
-  }
 }
 
 @media (max-width: 780px) {
@@ -857,6 +864,10 @@
 
   .overview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .recent-card {
+    grid-column: auto;
   }
 
   .footer-note {

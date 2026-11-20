@@ -617,7 +617,8 @@ paths:
   /api/v1/org/{organizationID}/analytics:
     get:
       description: Available to all organization members, including members without
-        link.manage.
+        link.manage. By default, returns country totals without daily link series.
+        When link_id is specified, returns daily analytics only for that link.
       parameters:
       - description: Organization ID
         in: path
@@ -632,6 +633,10 @@ paths:
         in: query
         name: period
         type: string
+      - description: Include daily analytics for this link only
+        in: query
+        name: link_id
+        type: integer
       produces:
       - application/json
       responses:
@@ -641,7 +646,7 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid organization ID or period
+          description: Invalid organization ID, period, or link_id
           schema:
             type: string
         "401":
@@ -658,7 +663,7 @@ paths:
             type: string
       security:
       - BearerAuth: []
-      summary: Get organization analytics
+      summary: Get link analytics
       tags:
       - Links
   /api/v1/org/{organizationID}/links:
