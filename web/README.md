@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Copy `web/.env_example` to `web/.env` before running the frontend locally. Configure `VITE_API_BASE_URL`, `VITE_TOKEN_STORAGE_KEY`, and `VITE_API_PROXY_TARGET` there; the proxy target defaults to `http://localhost:8080`. For Docker builds, set `VITE_API_BASE_URL` or `VITE_TOKEN_STORAGE_KEY` in the repository-root `.env` to override its default. These `VITE_` values are included in the client bundle and must not contain secrets; changing the token storage key makes existing browser sessions unavailable. In deployment, serve the frontend and reverse-proxy the API path to the backend on the same origin. The frontend never needs the backend JWT secret.
+Copy `web/.env_example` to `web/.env` before running the frontend locally. Configure `VITE_API_PROXY_TARGET` there; it defaults to `http://localhost:8080`. The API path (`/api/v1`) and browser token storage key (`ACCESS_TOKEN`) are fixed in the frontend. In deployment, serve the frontend and reverse-proxy the API path to the backend on the same origin. The frontend never needs the backend JWT secret.
 
 Build and run the production frontend with Docker Compose from the repository root:
 

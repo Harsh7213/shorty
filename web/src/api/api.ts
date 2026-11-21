@@ -1,10 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const TOKEN_STORAGE_KEY = import.meta.env.VITE_TOKEN_STORAGE_KEY;
-if (!API_BASE_URL || !TOKEN_STORAGE_KEY) {
-  throw new Error(
-    "VITE_API_BASE_URL and VITE_TOKEN_STORAGE_KEY must be configured",
-  );
-}
+const API_BASE_URL = "/api/v1";
 
 export interface User {
   id: number;
@@ -87,7 +81,7 @@ async function request<T>(
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const headers = new Headers();
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const token = localStorage.getItem("ACCESS_TOKEN");
   if (token) headers.set("Authorization", `Bearer ${token}`);
   if (options.body !== undefined)
     headers.set("Content-Type", "application/json");
@@ -100,7 +94,7 @@ async function request<T>(
 
   if (!response.ok) {
     if (response.status === 401 && token && !path.endsWith("/auth/login")) {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem("ACCESS_TOKEN");
       window.dispatchEvent(new Event("shorty:unauthorized"));
     }
     throw new ApiError(
@@ -114,15 +108,15 @@ async function request<T>(
 }
 
 export function saveToken(token: string) {
-  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  localStorage.setItem("ACCESS_TOKEN", token);
 }
 
 export function clearToken() {
-  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem("ACCESS_TOKEN");
 }
 
 export function hasSavedToken() {
-  return Boolean(localStorage.getItem(TOKEN_STORAGE_KEY));
+  return Boolean(localStorage.getItem("ACCESS_TOKEN"));
 }
 
 export async function signIn(email: string, password: string) {
@@ -147,7 +141,7 @@ export function getCurrentUser() {
   return request<User>("/auth/me");
 }
 
-export function getOrganizations() {
+export function getOrganization() {
   return request<Organization[]>("/org");
 }
 
@@ -159,7 +153,7 @@ export function getOrganizationMembers(organizationId: number) {
   return request<OrganizationMember[]>(`/org/${organizationId}/members`);
 }
 
-export function saveOrganizationMember(
+export function addOrganizationMember(
   organizationId: number,
   member: {
     email: string;
@@ -236,7 +230,7 @@ export function revokeShortLink(code: string) {
 }
 
 export async function getQRCode(code: string) {
-  const token = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const token = localStorage.getItem("ACCESS_TOKEN");
   const response = await fetch(
     `${API_BASE_URL}/qr/${encodeURIComponent(code)}`,
     {
@@ -246,7 +240,7 @@ export async function getQRCode(code: string) {
 
   if (!response.ok) {
     if (response.status === 401 && token) {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem("ACCESS_TOKEN");
       window.dispatchEvent(new Event("shorty:unauthorized"));
     }
     throw new Error(getErrorMessage(await response.text(), response.status));

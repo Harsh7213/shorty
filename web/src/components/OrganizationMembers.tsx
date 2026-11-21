@@ -35,7 +35,7 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import {
   getOrganizationMembers,
   removeOrganizationMember,
-  saveOrganizationMember
+  addOrganizationMember
 } from '../api/api';
 import type { OrganizationMember, OrganizationPermission } from '../api/api';
 import { errorMessage } from '../utils/errors';
@@ -190,7 +190,7 @@ export default function OrganizationMembers({
     event.preventDefault();
     setSaving(true);
     try {
-      const result = await saveOrganizationMember(organizationId, {
+      const result = await addOrganizationMember(organizationId, {
         email: form.email.trim(),
         display_name: form.displayName.trim(),
         ...(form.password ? { password: form.password } : {}),
@@ -348,7 +348,7 @@ export default function OrganizationMembers({
                         <Box className="member-permissions">
                           {member.is_owner ? (
                             <span className="member-role-pill">
-                              Owner · full access
+                              Owner
                             </span>
                           ) : member.permissions.length ? (
                             member.permissions.map((permission) => (

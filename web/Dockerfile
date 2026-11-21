@@ -2,11 +2,6 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-ARG VITE_API_BASE_URL=/api/v1
-ARG VITE_TOKEN_STORAGE_KEY=shorty_access_token
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_TOKEN_STORAGE_KEY=$VITE_TOKEN_STORAGE_KEY
-
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --legacy-peer-deps
 

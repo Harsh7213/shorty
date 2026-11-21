@@ -43,9 +43,6 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
-        VITE_TOKEN_STORAGE_KEY: ${VITE_TOKEN_STORAGE_KEY:-shorty_access_token}
     restart: unless-stopped
     container_name: shorty_frontend
     ports:

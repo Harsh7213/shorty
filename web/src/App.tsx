@@ -24,7 +24,7 @@ import {
   getCurrentUser,
   getLinkAnalytics,
   getOrganizationLinks,
-  getOrganizations,
+  getOrganization,
   hasSavedToken,
   registerAccount,
   revokeShortLink,
@@ -133,7 +133,7 @@ function App() {
   useEffect(() => {
     if (!token) return;
     let active = true;
-    Promise.all([getCurrentUser(), getOrganizations()])
+    Promise.all([getCurrentUser(), getOrganization()])
       .then(([account, orgs]) => {
         if (!active) return;
         setUser(account);
