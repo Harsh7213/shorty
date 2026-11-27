@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -17,24 +18,23 @@ import (
 
 	"github.com/Harsh7213/shorty/auth"
 	"github.com/Harsh7213/shorty/db"
-	"github.com/Harsh7213/shorty/notifications"
+	"github.com/Harsh7213/shorty/mailqueue"
 	"golang.org/x/crypto/bcrypt"
 )
 
 const verificationTokenLifetime = 24 * time.Hour
 const bcryptCost = 12
 
-// RegisterUser creates an account and sends its verification email.
+// RegisterUser creates an account and queues its verification email.
 // @Summary Register an account
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param body body RegisterUserRequest true "Account details"
-// @Success 201 {object} map[string]string
+// @Success 202 {object} map[string]string
 // @Failure 400 {string} string "Invalid request"
 // @Failure 409 {string} string "Email already exists"
 // @Failure 500 {string} string "Failed to create account"
-// @Failure 503 {string} string "Verification email could not be sent"
 // @Router /api/v1/auth/register [post]
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var request RegisterUserRequest
@@ -90,19 +90,18 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create verification token", http.StatusInternalServerError)
 		return
 	}
+	if err := enqueueVerificationEmail(r.Context(), tx, email, token, mailqueue.VerificationEmail); err != nil {
+		log.Printf("failed to queue verification email for new account: %v", err)
+		http.Error(w, "Failed to queue verification email", http.StatusInternalServerError)
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		http.Error(w, "Failed to create account", http.StatusInternalServerError)
 		return
 	}
 
-	if err := notifications.SendVerificationEmail(email, token); err != nil {
-		log.Printf("verification email delivery failed for new account: %v", err)
-		http.Error(w, "Account created, but verification email could not be sent. Retry using the resend endpoint.", http.StatusServiceUnavailable)
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, map[string]string{
-		"message": "Account created. Check your email to verify it before signing in.",
+	writeJSON(w, http.StatusAccepted, map[string]string{
+		"message": "Account created. Verification email queued.",
 	})
 }
 
@@ -170,7 +169,7 @@ func VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Email verified. You can now sign in."})
 }
 
-// ResendVerificationEmail sends another verification email when needed.
+// ResendVerificationEmail queues another verification email when needed.
 // @Summary Resend a verification email
 // @Tags Auth
 // @Accept json
@@ -219,18 +218,18 @@ func ResendVerificationEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to process request", http.StatusInternalServerError)
 		return
 	}
-	if err = tx.Commit(); err != nil {
+	kind := mailqueue.VerificationEmail
+	if passwordSetupRequired {
+		kind = mailqueue.InvitationEmail
+	}
+	if err := enqueueVerificationEmail(r.Context(), tx, email, token, kind); err != nil {
+		log.Printf("failed to queue verification email: %v", err)
 		http.Error(w, "Failed to process request", http.StatusInternalServerError)
 		return
 	}
-	var sendVerificationErr error
-	if passwordSetupRequired {
-		sendVerificationErr = notifications.SendInvitationEmail(email, token)
-	} else {
-		sendVerificationErr = notifications.SendVerificationEmail(email, token)
-	}
-	if sendVerificationErr != nil {
-		log.Printf("verification email delivery failed: %v", sendVerificationErr)
+	if err = tx.Commit(); err != nil {
+		http.Error(w, "Failed to process request", http.StatusInternalServerError)
+		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "If the account needs verification, an email will be sent."})
@@ -480,6 +479,7 @@ func createVerificationToken(r *http.Request, tx *sql.Tx, userID int64) (string,
 		return "", err
 	}
 	token := base64.RawURLEncoding.EncodeToString(randomToken)
+	expiresAt := time.Now().Add(verificationTokenLifetime)
 	_, err := tx.ExecContext(r.Context(), `
 		INSERT INTO shorty.email_verification_tokens (user_id, token_hash, expires_at)
 		VALUES ($1, $2, $3)
@@ -487,9 +487,28 @@ func createVerificationToken(r *http.Request, tx *sql.Tx, userID int64) (string,
 		SET token_hash = EXCLUDED.token_hash,
 		    expires_at = EXCLUDED.expires_at,
 		    created_at = NOW()`,
-		userID, hashVerificationToken(token), time.Now().Add(verificationTokenLifetime),
+		userID, hashVerificationToken(token), expiresAt,
 	)
 	return token, err
+}
+
+func enqueueVerificationEmail(
+	ctx context.Context,
+	tx *sql.Tx,
+	email string,
+	token string,
+	kind mailqueue.EmailKind,
+) error {
+	key, err := mailqueue.EncryptionKeyFromEnv()
+	if err != nil {
+		return err
+	}
+	return mailqueue.EnqueueTx(ctx, tx, mailqueue.EmailPayload{
+		Kind:      kind,
+		Recipient: email,
+		Token:     token,
+		TokenHash: hashVerificationToken(token),
+	}, key)
 }
 
 func hashVerificationToken(token string) string {

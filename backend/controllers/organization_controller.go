@@ -14,8 +14,8 @@ import (
 
 	"github.com/Harsh7213/shorty/auth"
 	"github.com/Harsh7213/shorty/db"
+	"github.com/Harsh7213/shorty/mailqueue"
 	"github.com/Harsh7213/shorty/models"
-	"github.com/Harsh7213/shorty/notifications"
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -167,7 +167,6 @@ func ListUserOrganization(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {string} string "Organization not found"
 // @Failure 409 {string} string "Member or organization conflict"
 // @Failure 500 {string} string "Failed to add organization member"
-// @Failure 503 {string} string "Verification email could not be sent"
 // @Router /api/v1/org/{organizationID}/members [post]
 func AddOrganizationMember(w http.ResponseWriter, r *http.Request) {
 	requesterID, ok := auth.UserID(r)
@@ -340,23 +339,21 @@ func AddOrganizationMember(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to add organization member", http.StatusInternalServerError)
 			return
 		}
+		emailKind := mailqueue.VerificationEmail
+		if passwordSetupRequired {
+			emailKind = mailqueue.InvitationEmail
+		}
+		if err := enqueueVerificationEmail(r.Context(), tx, email, verificationToken, emailKind); err != nil {
+			log.Printf("failed to queue verification email for organization member: %v", err)
+			http.Error(w, "Failed to add organization member", http.StatusInternalServerError)
+			return
+		}
 		if err = tx.Commit(); err != nil {
 			http.Error(w, "Failed to add organization member", http.StatusInternalServerError)
 			return
 		}
-		var sendVerificationErr error
-		if passwordSetupRequired {
-			sendVerificationErr = notifications.SendInvitationEmail(email, verificationToken)
-		} else {
-			sendVerificationErr = notifications.SendVerificationEmail(email, verificationToken)
-		}
-		if sendVerificationErr != nil {
-			log.Printf("verification email delivery failed for organization member: %v", sendVerificationErr)
-			http.Error(w, "Member added, but verification email could not be sent. Retry using the resend endpoint.", http.StatusServiceUnavailable)
-			return
-		}
 		writeJSON(w, http.StatusAccepted, map[string]string{
-			"message": "Member added. They must verify their email before signing in.",
+			"message": "Member added. Verification email queued.",
 		})
 		return
 	}

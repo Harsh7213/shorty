@@ -19,6 +19,16 @@ CREATE TABLE IF NOT EXISTS shorty.email_verification_tokens (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS shorty.email_outbox (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    encrypted_payload BYTEA,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMPTZ,
+    delivered_at TIMESTAMPTZ,
+    failed_at TIMESTAMPTZ,
+    last_error TEXT
+);
+
 CREATE TABLE IF NOT EXISTS shorty.organizations (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name          TEXT NOT NULL,
@@ -66,3 +76,7 @@ CREATE TABLE IF NOT EXISTS shorty.click_events (
 
 CREATE INDEX IF NOT EXISTS click_events_link_time_idx
     ON shorty.click_events (link_id, clicked_at);
+
+CREATE INDEX IF NOT EXISTS email_outbox_pending_idx
+    ON shorty.email_outbox (id)
+    WHERE published_at IS NULL AND failed_at IS NULL;

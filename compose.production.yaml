@@ -1,0 +1,28 @@
+x-production-settings: &production-settings
+  DOMAIN: ${DOMAIN:?DOMAIN must be set}
+  PUBLIC_API_URL: ${PUBLIC_API_URL:?PUBLIC_API_URL must be set}
+  SMTP_HOST: ${SMTP_HOST:?SMTP_HOST must be set}
+  SMTP_PORT: ${SMTP_PORT:?SMTP_PORT must be set}
+  SMTP_STARTTLS: ${SMTP_STARTTLS:?SMTP_STARTTLS must be set}
+
+services:
+  backend:
+    environment:
+      <<: *production-settings
+
+  rabbitmq:
+    environment:
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set}
+
+  outbox-dispatcher:
+    environment:
+      RABBITMQ_URL: amqp://shorty:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set}@rabbitmq:5672/
+
+  notification-worker:
+    environment:
+      <<: *production-settings
+      RABBITMQ_URL: amqp://shorty:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set}@rabbitmq:5672/
+
+  mailpit:
+    profiles:
+      - development

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="80" viewBox="0 0 300 80">
+  <svg x="0" y="8" width="64" height="64" viewBox="0 0 64 64">
+    <g transform="matrix(0.9846 0 0 0.9846 32 32)">
+      <rect x="-32" y="-32" rx="16" ry="16" width="64" height="64" fill="rgb(98,84,223)"/>
+    </g>
+    <g transform="matrix(0.4923 0.8527 -0.8527 0.4923 27.4892 23.859)">
+      <path transform="translate(-21.6768, -29.9164)" d="M 28 24.5 L 22.5 19 C 19.1362 16.0106 14.0253 16.161 10.8431 19.3431 C 7.661 22.5253 7.5106 27.6362 10.5 31 L 20 40.5 C 23.3171 43.8056 28.6829 43.8056 32 40.5 L 35 37.5" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/>
+    </g>
+    <g transform="matrix(0.4923 0.8527 -0.8527 0.4923 35.3055 41.8284)">
+      <path transform="translate(-42.3232, -34.0836)" d="M 36 39.5 L 41.5 45 C 44.8638 47.9894 49.9747 47.839 53.1569 44.6569 C 56.339 41.4747 56.4894 36.3638 53.5 33 L 44 23.5 C 40.6829 20.1944 35.3171 20.1944 32 23.5 L 29 26.5" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round"/>
+    </g>
+  </svg>
+  <text x="80" y="56" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="#6254df">Shorty</text>
+</svg>

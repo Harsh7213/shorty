@@ -229,8 +229,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -252,12 +252,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to create account",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "503": {
-                        "description": "Verification email could not be sent",
                         "schema": {
                             "type": "string"
                         }
@@ -763,7 +757,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Available to all organization members, including members without link.manage. By default, returns country totals without daily link series. When link_id is specified, returns daily analytics only for that link.",
+                "description": "Available to all organization members, including members without link.manage.\nBy default, returns country totals without daily link series.\nWhen link_id is specified, returns daily analytics only for that link.",
                 "produces": [
                     "application/json"
                 ],
@@ -1033,12 +1027,6 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Failed to add organization member",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "503": {
-                        "description": "Verification email could not be sent",
                         "schema": {
                             "type": "string"
                         }
